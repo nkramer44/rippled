@@ -327,6 +327,12 @@ TxFormats::TxFormats()
             {sfTicketSequence, soeOPTIONAL},
         },
         commonFields);
+
+    add(jss::DummyTx,
+        ttDUMMY_TX,
+        {
+        },
+        commonFields);
 }
 
 TxFormats const&

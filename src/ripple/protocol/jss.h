@@ -58,6 +58,7 @@ JSS(DeliverMin);             // in: TransactionSign
 JSS(DepositPreauth);         // transaction and ledger type.
 JSS(Destination);            // in: TransactionSign; field.
 JSS(DirectoryNode);          // ledger type.
+JSS(DummyTx);                // transaction type.
 JSS(EnableAmendment);        // transaction type.
 JSS(Escrow);                 // ledger type.
 JSS(EscrowCancel);           // transaction type.

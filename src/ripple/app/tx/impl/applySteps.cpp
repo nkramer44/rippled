@@ -28,6 +28,7 @@
 #include <ripple/app/tx/impl/CreateTicket.h>
 #include <ripple/app/tx/impl/DeleteAccount.h>
 #include <ripple/app/tx/impl/DepositPreauth.h>
+#include <ripple/app/tx/impl/DummyTx.h>
 #include <ripple/app/tx/impl/Escrow.h>
 #include <ripple/app/tx/impl/NFTokenAcceptOffer.h>
 #include <ripple/app/tx/impl/NFTokenBurn.h>
@@ -123,6 +124,7 @@ std::map<TxType, TransactorWrapper> transactorMap{
     {ttNFTOKEN_CREATE_OFFER, transactor_helper<NFTokenCreateOffer>()},
     {ttNFTOKEN_CANCEL_OFFER, transactor_helper<NFTokenCancelOffer>()},
     {ttNFTOKEN_ACCEPT_OFFER, transactor_helper<NFTokenAcceptOffer>()},
+    {ttDUMMY_TX, transactor_helper<DummyTx>()},
 };
 
 TxConsequences
