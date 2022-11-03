@@ -28,6 +28,7 @@
 #include <ripple/app/tx/impl/CreateTicket.h>
 #include <ripple/app/tx/impl/DeleteAccount.h>
 #include <ripple/app/tx/impl/DepositPreauth.h>
+#include <ripple/app/tx/impl/DummyTx.h>
 #include <ripple/app/tx/impl/Escrow.h>
 #include <ripple/app/tx/impl/NFTokenAcceptOffer.h>
 #include <ripple/app/tx/impl/NFTokenBurn.h>
@@ -147,6 +148,8 @@ invoke_preflight(PreflightContext const& ctx)
             return invoke_preflight_helper<NFTokenCancelOffer>(ctx);
         case ttNFTOKEN_ACCEPT_OFFER:
             return invoke_preflight_helper<NFTokenAcceptOffer>(ctx);
+        case ttDUMMY_TX:
+            return invoke_preflight_helper<DummyTx>(ctx);
         default:
             assert(false);
             return {temUNKNOWN, TxConsequences{temUNKNOWN}};
@@ -248,6 +251,8 @@ invoke_preclaim(PreclaimContext const& ctx)
             return invoke_preclaim<NFTokenCancelOffer>(ctx);
         case ttNFTOKEN_ACCEPT_OFFER:
             return invoke_preclaim<NFTokenAcceptOffer>(ctx);
+        case ttDUMMY_TX:
+            return invoke_preclaim<DummyTx>(ctx);
         default:
             assert(false);
             return temUNKNOWN;
@@ -311,6 +316,8 @@ invoke_calculateBaseFee(ReadView const& view, STTx const& tx)
             return NFTokenCancelOffer::calculateBaseFee(view, tx);
         case ttNFTOKEN_ACCEPT_OFFER:
             return NFTokenAcceptOffer::calculateBaseFee(view, tx);
+        case ttDUMMY_TX:
+            return DummyTx::calculateBaseFee(view, tx);
         default:
             assert(false);
             return XRPAmount{0};
@@ -463,6 +470,11 @@ invoke_apply(ApplyContext& ctx)
             NFTokenAcceptOffer p(ctx);
             return p();
         }
+        case ttDUMMY_TX: {
+            DummyTx p(ctx);
+            return p();
+        }
+        
         default:
             assert(false);
             return {temUNKNOWN, false};
