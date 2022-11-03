@@ -9,6 +9,8 @@
 #include <ripple/protocol/TxFlags.h>
 #include <ripple/protocol/st.h>
 
+#include <Python.h>
+
 
 namespace ripple {
 
@@ -23,6 +25,13 @@ DummyTx::preflight(PreflightContext const& ctx)
 
     if (ctx.tx.getFlags() & tfUniversalMask)
         return temINVALID_FLAG;
+    
+    Py_Initialize();
+    PyRun_SimpleString("print('*' * 2000)");
+
+    if (Py_FinalizeEx() < 0) {
+        return temUNKNOWN;
+    }
 
     return preflight2(ctx);
 }
