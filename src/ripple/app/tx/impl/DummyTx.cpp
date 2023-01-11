@@ -47,6 +47,9 @@ DummyTx::preflight(PreflightContext const& ctx)
         return temUNKNOWN;
     }
 
+    // std::string currentFilename = __FILE__;
+    // PyRun_SimpleString("print('" + currentFilename + "')");
+
     PyRun_SimpleString("print('IMPORT SUCCESSFUL')");
 
     // get the name of the function
