@@ -109,3 +109,4 @@ pkg_out
 
 my_build/
 mybuild2/
+CMakeUserPresets.json

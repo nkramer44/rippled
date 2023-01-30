@@ -17,9 +17,6 @@ namespace ripple {
 NotTEC
 DummyTx::preflight(PreflightContext const& ctx)
 {
-    if (!ctx.rules.enabled(featureXChainBridge))
-        return temDISABLED;
-
     if (auto const ret = preflight1(ctx); !isTesSuccess(ret))
         return ret;  // LCOV_EXCL_LINE
 
