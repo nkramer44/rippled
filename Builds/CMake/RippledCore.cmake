@@ -13,7 +13,7 @@ if (unity)
   set_target_properties(xrpl_core PROPERTIES UNITY_BUILD ON)
 endif ()
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+find_package(pybind11 REQUIRED)
 
 
 #[===============================[
@@ -988,7 +988,6 @@ if (tests)
        test sources:
          subdir: shamap
     #]===============================]
-    ${PYTHON_LIBRARIES}
     src/test/shamap/FetchPack_test.cpp
     src/test/shamap/SHAMapSync_test.cpp
     src/test/shamap/SHAMap_test.cpp
@@ -1004,7 +1003,7 @@ target_link_libraries (rippled
   Ripple::opts
   Ripple::libs
   Ripple::xrpl_core
-  ${Python3_LIBRARIES}
+  pybind11::embed
   )
 target_include_directories(rippled PRIVATE ${Python3_INCLUDE_DIRS})
 exclude_if_included (rippled)
