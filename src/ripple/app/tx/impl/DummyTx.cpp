@@ -9,6 +9,9 @@
 #include <ripple/protocol/TxFlags.h>
 #include <ripple/protocol/st.h>
 
+#include <pybind11/embed.h> // everything needed for embedding
+namespace py = pybind11;
+using namespace pybind11::literals; // to bring in the `_a` literal
 
 namespace ripple {
 
@@ -23,9 +26,16 @@ DummyTx::preflight(PreflightContext const& ctx)
 
     if (ctx.tx.getFlags() & tfUniversalMask)
         return temINVALID_FLAG;
+    
+    py::print("Hello, World!"); // use the Python API
+    py::object plugin = py::module_::import("plugin");
+    py::print(plugin);
+    py::object preflight = plugin.attr("preflight");
+    py::print(preflight);
+    py::print(ctx.tx);
+    preflight(ctx.tx);
 
     return preflight2(ctx);
-}
 
 TER
 DummyTx::preclaim(PreclaimContext const& ctx)

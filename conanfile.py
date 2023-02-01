@@ -32,6 +32,7 @@ class Xrpl(ConanFile):
         'nudb/2.0.8',
         'openssl/1.1.1m',
         'protobuf/3.21.4',
+        'pybind11/2.10.1',
         'snappy/1.1.9',
         'soci/4.0.3',
         'sqlite3/3.38.0',
