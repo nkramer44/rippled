@@ -108,12 +108,6 @@ public:
         return ctx_.view();
     }
 
-    ApplyView const&
-    view() const
-    {
-        return ctx_.view();
-    }
-
     /////////////////////////////////////////////////////
     /*
     These static functions are called from invoke_preclaim<Tx>

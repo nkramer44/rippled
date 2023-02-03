@@ -46,6 +46,13 @@ DummyTx::preclaim(PreclaimContext const& ctx)
 TER
 DummyTx::doApply()
 {
+    py::scoped_interpreter guard{}; // start the interpreter and keep it alive
+    py::print("Hello, World!"); // use the Python API
+    py::object plugin = py::module_::import("plugin");
+    py::print(plugin);
+    py::object doApply = plugin.attr("doApply");
+    doApply(ctx_);
+
     return tesSUCCESS;
 }
 }
