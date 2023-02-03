@@ -32,8 +32,8 @@ DummyTx::preflight(PreflightContext const& ctx)
     py::print(plugin);
     py::object preflight = plugin.attr("preflight");
     py::print(preflight);
-    py::print(ctx.tx);
-    preflight(ctx.tx);
+    py::print(ctx);
+    preflight(ctx);
 
     return preflight2(ctx);
 
