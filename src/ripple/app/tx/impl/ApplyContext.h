@@ -56,12 +56,6 @@ public:
         return *view_;
     }
 
-    ApplyView const&
-    view() const
-    {
-        return *view_;
-    }
-
     // VFALCO Unfortunately this is necessary
     RawView&
     rawView()
