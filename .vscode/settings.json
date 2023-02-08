@@ -102,5 +102,6 @@
         "memory_resource": "cpp",
         "utility": "cpp",
         "stop_token": "cpp"
+        "*.ipp": "cpp",
     }
 }

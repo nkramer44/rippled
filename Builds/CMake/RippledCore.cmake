@@ -117,7 +117,11 @@ target_sources (xrpl_core PRIVATE
   #]===============================]
   src/ripple/crypto/impl/RFC1751.cpp
   src/ripple/crypto/impl/csprng.cpp
-  src/ripple/crypto/impl/secure_erase.cpp)
+  src/ripple/crypto/impl/secure_erase.cpp
+  src/ripple/ledger/impl/ApplyView.cpp
+  src/ripple/ledger/impl/ApplyViewBase.cpp
+  src/ripple/ledger/impl/ApplyViewImpl.cpp
+)
 
 add_library (Ripple::xrpl_core ALIAS xrpl_core)
 target_include_directories (xrpl_core
@@ -494,9 +498,6 @@ target_sources (rippled PRIVATE
        subdir: ledger
   #]===============================]
   src/ripple/ledger/impl/ApplyStateTable.cpp
-  src/ripple/ledger/impl/ApplyView.cpp
-  src/ripple/ledger/impl/ApplyViewBase.cpp
-  src/ripple/ledger/impl/ApplyViewImpl.cpp
   src/ripple/ledger/impl/BookDirs.cpp
   src/ripple/ledger/impl/CachedView.cpp
   src/ripple/ledger/impl/Directory.cpp
