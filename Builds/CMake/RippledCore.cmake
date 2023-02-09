@@ -126,7 +126,6 @@ target_sources (xrpl_core PRIVATE
   src/ripple/ledger/impl/RawStateTable.cpp
   src/ripple/ledger/impl/ReadView.cpp
   src/ripple/ledger/impl/View.cpp
-  src/ripple/ledger/impl/CachedView.cpp
 )
 
 add_library (Ripple::xrpl_core ALIAS xrpl_core)
