@@ -49,9 +49,11 @@ DummyTx::doApply()
     py::scoped_interpreter guard{}; // start the interpreter and keep it alive
     py::print("Hello, World!"); // use the Python API
     py::object plugin = py::module_::import("plugin");
+    py::print(ctx_);
     py::print(plugin);
-    py::object doApply = plugin.attr("doApply");
-    doApply(ctx_);
+    py::object pythonDoApply = plugin.attr("doApply");
+    py::print(pythonDoApply);
+    pythonDoApply(ctx_);
 
     return tesSUCCESS;
 }

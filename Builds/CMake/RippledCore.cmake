@@ -126,6 +126,10 @@ target_sources (xrpl_core PRIVATE
   src/ripple/ledger/impl/RawStateTable.cpp
   src/ripple/ledger/impl/ReadView.cpp
   src/ripple/ledger/impl/View.cpp
+  src/ripple/ledger/impl/BookDirs.cpp
+  src/ripple/ledger/impl/CachedView.cpp
+  src/ripple/ledger/impl/Directory.cpp
+  src/ripple/ledger/impl/PaymentSandbox.cpp
 )
 
 add_library (Ripple::xrpl_core ALIAS xrpl_core)
@@ -502,10 +506,7 @@ target_sources (rippled PRIVATE
      main sources:
        subdir: ledger
   #]===============================]
-  src/ripple/ledger/impl/BookDirs.cpp
-  src/ripple/ledger/impl/CachedView.cpp
-  src/ripple/ledger/impl/Directory.cpp
-  src/ripple/ledger/impl/PaymentSandbox.cpp
+  
   #[===============================[
      main sources:
        subdir: net
