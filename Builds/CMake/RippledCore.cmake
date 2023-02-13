@@ -132,6 +132,15 @@ target_sources (xrpl_core PRIVATE
   src/ripple/app/tx/impl/Transactor.cpp
   src/ripple/app/tx/impl/ApplyContext.cpp
   src/ripple/app/misc/impl/LoadFeeTrack.cpp
+  src/ripple/app/tx/impl/InvariantCheck.cpp
+  src/ripple/app/misc/HashRouter.cpp
+  #[===============================[
+     main sources:
+       subdir: conditions
+  #]===============================]
+  src/ripple/conditions/impl/Condition.cpp
+  src/ripple/conditions/impl/Fulfillment.cpp
+  src/ripple/conditions/impl/error.cpp
 )
 
 add_library (Ripple::xrpl_core ALIAS xrpl_core)
@@ -395,7 +404,6 @@ target_sources (rippled PRIVATE
   src/ripple/app/reporting/P2pProxy.cpp
   src/ripple/app/misc/CanonicalTXSet.cpp
   src/ripple/app/misc/FeeVoteImpl.cpp
-  src/ripple/app/misc/HashRouter.cpp
   src/ripple/app/misc/NegativeUNLVote.cpp
   src/ripple/app/misc/NetworkOPs.cpp
   src/ripple/app/misc/SHAMapStoreImp.cpp
@@ -445,7 +453,6 @@ target_sources (rippled PRIVATE
   src/ripple/app/tx/impl/DepositPreauth.cpp
   src/ripple/app/tx/impl/DummyTx.cpp
   src/ripple/app/tx/impl/Escrow.cpp
-  src/ripple/app/tx/impl/InvariantCheck.cpp
   src/ripple/app/tx/impl/NFTokenAcceptOffer.cpp
   src/ripple/app/tx/impl/NFTokenBurn.cpp
   src/ripple/app/tx/impl/NFTokenCancelOffer.cpp
@@ -474,13 +481,6 @@ target_sources (rippled PRIVATE
   src/ripple/basics/impl/make_SSLContext.cpp
   src/ripple/basics/impl/mulDiv.cpp
   src/ripple/basics/impl/partitioned_unordered_map.cpp
-  #[===============================[
-     main sources:
-       subdir: conditions
-  #]===============================]
-  src/ripple/conditions/impl/Condition.cpp
-  src/ripple/conditions/impl/Fulfillment.cpp
-  src/ripple/conditions/impl/error.cpp
   #[===============================[
      main sources:
        subdir: core
