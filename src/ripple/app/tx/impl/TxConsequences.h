@@ -2,6 +2,9 @@
 #include <ripple/beast/utility/Journal.h>
 #include <ripple/ledger/ApplyViewImpl.h>
 
+#ifndef RIPPLE_TX_TX_CONSEQUENCES_H_INCLUDED
+#define RIPPLE_TX_TX_CONSEQUENCES_H_INCLUDED
+
 namespace ripple {
 
 /** Class describing the consequences to the account
