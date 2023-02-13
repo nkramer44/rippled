@@ -164,6 +164,7 @@ target_link_libraries (xrpl_core
     OpenSSL::Crypto
     Ripple::boost
     Ripple::syslibs
+    Ripple::grpc_pbufs
     secp256k1::secp256k1
     ed25519::ed25519
     date::date
