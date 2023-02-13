@@ -1,3 +1,7 @@
+
+#include <ripple/beast/utility/Journal.h>
+#include <ripple/ledger/ApplyViewImpl.h>
+
 namespace ripple {
 
 /** Class describing the consequences to the account
