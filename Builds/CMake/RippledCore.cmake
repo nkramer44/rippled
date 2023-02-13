@@ -130,6 +130,8 @@ target_sources (xrpl_core PRIVATE
   src/ripple/ledger/impl/ReadView.cpp
   src/ripple/ledger/impl/View.cpp
   src/ripple/app/tx/impl/Transactor.cpp
+  src/ripple/app/tx/impl/ApplyContext.cpp
+  src/ripple/app/misc/impl/LoadFeeTrack.cpp
 )
 
 add_library (Ripple::xrpl_core ALIAS xrpl_core)
@@ -400,7 +402,6 @@ target_sources (rippled PRIVATE
   src/ripple/app/misc/detail/impl/WorkSSL.cpp
   src/ripple/app/misc/impl/AccountTxPaging.cpp
   src/ripple/app/misc/impl/AmendmentTable.cpp
-  src/ripple/app/misc/impl/LoadFeeTrack.cpp
   src/ripple/app/misc/impl/Manifest.cpp
   src/ripple/app/misc/impl/Transaction.cpp
   src/ripple/app/misc/impl/TxQ.cpp
@@ -432,7 +433,6 @@ target_sources (rippled PRIVATE
   src/ripple/app/rdb/impl/UnitaryShard.cpp
   src/ripple/app/rdb/impl/Vacuum.cpp
   src/ripple/app/rdb/impl/Wallet.cpp
-  src/ripple/app/tx/impl/ApplyContext.cpp
   src/ripple/app/tx/impl/BookTip.cpp
   src/ripple/app/tx/impl/CancelCheck.cpp
   src/ripple/app/tx/impl/CancelOffer.cpp
