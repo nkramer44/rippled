@@ -118,6 +118,9 @@ target_sources (xrpl_core PRIVATE
   src/ripple/crypto/impl/RFC1751.cpp
   src/ripple/crypto/impl/csprng.cpp
   src/ripple/crypto/impl/secure_erase.cpp
+  #[===============================[
+    extra stuff
+  #]===============================]
   src/ripple/ledger/impl/ApplyStateTable.cpp
   src/ripple/ledger/impl/ApplyView.cpp
   src/ripple/ledger/impl/ApplyViewBase.cpp
@@ -126,6 +129,7 @@ target_sources (xrpl_core PRIVATE
   src/ripple/ledger/impl/RawStateTable.cpp
   src/ripple/ledger/impl/ReadView.cpp
   src/ripple/ledger/impl/View.cpp
+  src/ripple/app/tx/impl/Transactor.cpp
 )
 
 add_library (Ripple::xrpl_core ALIAS xrpl_core)
@@ -456,7 +460,6 @@ target_sources (rippled PRIVATE
   src/ripple/app/tx/impl/SetTrust.cpp
   src/ripple/app/tx/impl/SignerEntries.cpp
   src/ripple/app/tx/impl/Taker.cpp
-  src/ripple/app/tx/impl/Transactor.cpp
   src/ripple/app/tx/impl/apply.cpp
   src/ripple/app/tx/impl/applySteps.cpp
   src/ripple/app/tx/impl/details/NFTokenUtils.cpp
