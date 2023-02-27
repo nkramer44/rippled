@@ -109,3 +109,6 @@ pkg_out
 pkg
 CMakeUserPresets.json
 bld.rippled/
+my_build
+cpp_pt_build
+python_pt_build
