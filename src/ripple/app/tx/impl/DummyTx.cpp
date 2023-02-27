@@ -18,14 +18,13 @@ namespace ripple {
 NotTEC
 DummyTx::preflight(PreflightContext const& ctx)
 {
-    if (!ctx.rules.enabled(featureXChainBridge))
-        return temDISABLED;
-
     if (auto const ret = preflight1(ctx); !isTesSuccess(ret))
         return ret;  // LCOV_EXCL_LINE
 
     if (ctx.tx.getFlags() & tfUniversalMask)
         return temINVALID_FLAG;
+    
+    py::scoped_interpreter guard{}; // start the interpreter and keep it alive
     
     py::print("Hello, World!"); // use the Python API
     py::object plugin = py::module_::import("plugin");
@@ -36,6 +35,7 @@ DummyTx::preflight(PreflightContext const& ctx)
     preflight(ctx);
 
     return preflight2(ctx);
+}
 
 TER
 DummyTx::preclaim(PreclaimContext const& ctx)
