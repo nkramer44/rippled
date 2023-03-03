@@ -44,6 +44,8 @@
 #include <dlfcn.h>
 #include <iostream>
 #include <map>
+#include <pybind11/embed.h> // everything needed for embedding
+namespace py = pybind11;
 
 static const std::string libPath =
     "/Users/mvadari/Documents/plugin_transactor/cpp/build/"
@@ -56,12 +58,122 @@ typedef TER (*preclaimPtr)(PreclaimContext const&);
 typedef XRPAmount (*calculateBaseFeePtr)(ReadView const& view, STTx const& tx);
 typedef std::pair<TER, bool> (*applyPtr)(ApplyContext& ctx);
 
-struct TransactorWrapper
+class TransactorWrapper
 {
-    preflightPtr preflight;
-    preclaimPtr preclaim;
-    calculateBaseFeePtr calculateBaseFee;
-    applyPtr apply;
+public:
+    virtual NotTEC
+    preflight(PreflightContext const& ctx) = 0;
+
+    virtual TER
+    preclaim(PreclaimContext const& ctx) = 0;
+
+    virtual XRPAmount 
+    calculateBaseFee(ReadView const& view, STTx const& tx) = 0;
+
+    virtual std::pair<TER, bool>
+    apply(ApplyContext& ctx) = 0;
+
+    virtual ~TransactorWrapper() = default;
+};
+
+class CppTransactorWrapper : public TransactorWrapper
+{
+private:
+    preflightPtr preflight_;
+    preclaimPtr preclaim_;
+    calculateBaseFeePtr calculateBaseFee_;
+    applyPtr apply_;
+
+public:
+    CppTransactorWrapper(
+        preflightPtr const& preflightFunction,
+        preclaimPtr const& preclaimFunction,
+        calculateBaseFeePtr const& calculateBaseFeeFunction,
+        applyPtr const& applyFunction)
+        : preflight_(preflightFunction)
+        , preclaim_(preclaimFunction)
+        , calculateBaseFee_(calculateBaseFeeFunction)
+        , apply_(applyFunction)
+    {
+    }
+
+NotTEC
+preflight(PreflightContext const& ctx) {
+    return preflight_(ctx);
+}
+
+TER
+preclaim(PreclaimContext const& ctx) {
+    return preclaim_(ctx);
+}
+
+XRPAmount
+calculateBaseFee(ReadView const& view, STTx const& tx) {
+    return calculateBaseFee_(view, tx);
+}
+
+std::pair<TER, bool>
+apply(ApplyContext& ctx) {
+    return apply_(ctx);
+}
+};
+
+class PythonTransactorWrapper : public TransactorWrapper
+{
+
+private:
+    std::string pathToModule_;
+
+py::object
+plugin()
+{
+    py::object sys = py::module_::import("sys");
+    py::object pathAppend = sys.attr("path").attr("append");
+    pathAppend(pathToModule_.c_str());
+    // TODO: get actual module name from string
+    return py::module_::import("plugin");
+}
+
+public:
+    PythonTransactorWrapper(
+        std::string pathToModule)
+        : pathToModule_(pathToModule)
+    {
+    }
+NotTEC
+preflight(PreflightContext const& ctx) {
+    py::scoped_interpreter guard{}; // start the interpreter and keep it alive
+    py::print("IN PREFLIGHTTTTTTT");
+    py::object preflightReturn = plugin().attr("preflight")(ctx);
+    // TODO: fix this cast so that it actually returns NotTEC
+    return preflightReturn.cast<TEScodes>();
+}
+
+TER
+preclaim(PreclaimContext const& ctx) {
+    py::scoped_interpreter guard{}; // start the interpreter and keep it alive
+    py::object preclaimReturn = plugin().attr("preclaim")(ctx);
+    return preclaimReturn.cast<TEScodes>();
+}
+
+XRPAmount
+calculateBaseFee(ReadView const& view, STTx const& tx) {
+    py::scoped_interpreter guard{}; // start the interpreter and keep it alive
+    py::object calculateBaseFeeFn = plugin().attr("calculateBaseFee");
+    py::object calculateBaseFeeReturn = calculateBaseFeeFn(
+        py::cast(view, py::return_value_policy::reference),
+        py::cast(tx)
+    );
+    return calculateBaseFeeReturn.cast<XRPAmount>();
+}
+
+std::pair<TER, bool>
+apply(ApplyContext& ctx) {
+    py::scoped_interpreter guard{}; // start the interpreter and keep it alive
+    py::object doApplyFn = plugin().attr("doApply");
+    py::object applyReturn = doApplyFn(py::cast(ctx, py::return_value_policy::reference));
+    return applyReturn.cast<std::pair<TEScodes, bool>>();
+}
 };
 
 template <class T>
@@ -73,30 +185,38 @@ apply_helper(ApplyContext& ctx)
 }
 
 template <class T>
-TransactorWrapper
+std::shared_ptr<CppTransactorWrapper>
 transactor_helper()
 {
-    return {
+    return std::shared_ptr<CppTransactorWrapper>(new CppTransactorWrapper(
         T::preflight,
         T::preclaim,
         T::calculateBaseFee,
-        apply_helper<T>,
-    };
+        apply_helper<T>
+    ));
 };
 
-TransactorWrapper
+std::shared_ptr<CppTransactorWrapper>
 transactor_helper(std::string pathToLib)
 {
     void* handle = dlopen(libPath.c_str(), RTLD_LAZY);
-    return {
+    return std::shared_ptr<CppTransactorWrapper>(new CppTransactorWrapper(
         (preflightPtr)dlsym(handle, "preflight"),
         (preclaimPtr)dlsym(handle, "preclaim"),
         (calculateBaseFeePtr)dlsym(handle, "calculateBaseFee"),
-        (applyPtr)dlsym(handle, "apply"),
-    };
+        (applyPtr)dlsym(handle, "apply")
+    ));
 };
 
-std::map<TxType, TransactorWrapper> transactorMap{
+std::shared_ptr<PythonTransactorWrapper>
+transactor_helper_python(std::string pathToFile)
+{
+    return std::shared_ptr<PythonTransactorWrapper>(
+        new PythonTransactorWrapper(pathToFile)
+    );
+};
+
+std::map<TxType, std::shared_ptr<TransactorWrapper>> transactorMap{
     {ttACCOUNT_DELETE, transactor_helper<DeleteAccount>()},
     {ttACCOUNT_SET, transactor_helper<SetAccount>()},
     {ttCHECK_CANCEL, transactor_helper<CancelCheck>()},
@@ -124,7 +244,7 @@ std::map<TxType, TransactorWrapper> transactorMap{
     {ttNFTOKEN_CREATE_OFFER, transactor_helper<NFTokenCreateOffer>()},
     {ttNFTOKEN_CANCEL_OFFER, transactor_helper<NFTokenCancelOffer>()},
     {ttNFTOKEN_ACCEPT_OFFER, transactor_helper<NFTokenAcceptOffer>()},
-    {ttDUMMY_TX, transactor_helper<DummyTx>()},
+    {ttDUMMY_TX, transactor_helper_python("./plugin.py")},
 };
 
 TxConsequences
@@ -140,7 +260,7 @@ invoke_preflight(PreflightContext const& ctx)
     if (auto it = transactorMap.find(ctx.tx.getTxnType());
         it != transactorMap.end())
     {
-        auto const tec = it->second.preflight(ctx);
+        auto const tec = it->second->preflight(ctx);
         return {
             tec,
             isTesSuccess(tec) ? consequences_helper(ctx) : TxConsequences{tec}};
@@ -221,7 +341,7 @@ invoke_preclaim(PreclaimContext const& ctx)
                 return result;
         }
 
-        return it->second.preclaim(ctx);
+        return it->second->preclaim(ctx);
     }
     assert(false);
     return temUNKNOWN;
@@ -233,7 +353,7 @@ invoke_calculateBaseFee(ReadView const& view, STTx const& tx)
     if (auto it = transactorMap.find(tx.getTxnType());
         it != transactorMap.end())
     {
-        return it->second.calculateBaseFee(view, tx);
+        return it->second->calculateBaseFee(view, tx);
     }
     assert(false);
     return XRPAmount{0};
@@ -245,7 +365,7 @@ invoke_apply(ApplyContext& ctx)
     if (auto it = transactorMap.find(ctx.tx.getTxnType());
         it != transactorMap.end())
     {
-        return it->second.apply(ctx);
+        return it->second->apply(ctx);
     }
     assert(false);
     return {temUNKNOWN, false};
