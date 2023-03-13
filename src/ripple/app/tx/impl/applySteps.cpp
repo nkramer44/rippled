@@ -44,6 +44,8 @@
 #include <dlfcn.h>
 #include <iostream>
 #include <map>
+#include <boost/dll/shared_library.hpp>
+#include <boost/dll/library_info.hpp>
 #include <pybind11/embed.h> // everything needed for embedding
 namespace py = pybind11;
 
@@ -199,7 +201,17 @@ transactor_helper()
 std::shared_ptr<CppTransactorWrapper>
 transactor_helper(std::string pathToLib)
 {
-    void* handle = dlopen(libPath.c_str(), RTLD_LAZY);
+    void* handle = dlopen(pathToLib.c_str(), RTLD_LAZY);
+    boost::dll::library_info inf(pathToLib);
+
+    // Getting symbols exported from 'Anna' section
+    std::vector<std::string> exports = inf.symbols();
+
+    // Loading library and importing symbols from it
+    boost::dll::shared_library lib(pathToLib);
+    for (std::size_t j = 0; j < exports.size(); ++j) {
+        std::cout << "\nFunction " << exports[j] << std::endl;
+    }
     return std::shared_ptr<CppTransactorWrapper>(new CppTransactorWrapper(
         (preflightPtr)dlsym(handle, "preflight"),
         (preclaimPtr)dlsym(handle, "preclaim"),
@@ -244,7 +256,8 @@ std::map<TxType, std::shared_ptr<TransactorWrapper>> transactorMap{
     {ttNFTOKEN_CREATE_OFFER, transactor_helper<NFTokenCreateOffer>()},
     {ttNFTOKEN_CANCEL_OFFER, transactor_helper<NFTokenCancelOffer>()},
     {ttNFTOKEN_ACCEPT_OFFER, transactor_helper<NFTokenAcceptOffer>()},
-    {ttDUMMY_TX, transactor_helper_python("./plugin.py")},
+    // {ttDUMMY_TX, transactor_helper_python("./plugin.py")},
+    {ttDUMMY_TX, transactor_helper("/Users/mvadari/Documents/plugin_transactor/cffi/plugin-1.5.dylib")},
 };
 
 TxConsequences
