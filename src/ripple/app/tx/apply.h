@@ -20,17 +20,16 @@
 #ifndef RIPPLE_TX_APPLY_H_INCLUDED
 #define RIPPLE_TX_APPLY_H_INCLUDED
 
+#include <ripple/app/tx/validity.h>
 #include <ripple/beast/utility/Journal.h>
 #include <ripple/core/Config.h>
 #include <ripple/ledger/View.h>
 #include <ripple/protocol/STTx.h>
 #include <ripple/protocol/TER.h>
-#include <ripple/app/tx/validity.h>
 #include <memory>
 #include <utility>
 
 namespace ripple {
-
 
 /** Apply a transaction to an `OpenView`.
 

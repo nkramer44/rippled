@@ -110,6 +110,6 @@ public:
     }
 };
 
-}
+}  // namespace ripple
 
-# endif
+#endif

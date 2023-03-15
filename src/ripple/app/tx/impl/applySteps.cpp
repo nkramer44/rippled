@@ -40,11 +40,13 @@
 #include <ripple/app/tx/impl/SetRegularKey.h>
 #include <ripple/app/tx/impl/SetSignerList.h>
 #include <ripple/app/tx/impl/SetTrust.h>
-#include <iostream>
 #include <dlfcn.h>
+#include <iostream>
 #include <map>
 
-static const std::string libPath = "/Users/mvadari/Documents/plugin_transactor/cpp/build/libplugin_transactor.dylib";
+static const std::string libPath =
+    "/Users/mvadari/Documents/plugin_transactor/cpp/build/"
+    "libplugin_transactor.dylib";
 
 namespace ripple {
 
@@ -53,7 +55,8 @@ typedef TER (*preclaimPtr)(PreclaimContext const&);
 typedef XRPAmount (*calculateBaseFeePtr)(ReadView const& view, STTx const& tx);
 typedef std::pair<TER, bool> (*applyPtr)(ApplyContext& ctx);
 
-struct TransactorWrapper {
+struct TransactorWrapper
+{
     preflightPtr preflight;
     preclaimPtr preclaim;
     calculateBaseFeePtr calculateBaseFee;
@@ -92,7 +95,7 @@ transactor_helper(std::string pathToLib)
     };
 };
 
-std::map <TxType, TransactorWrapper> transactorMap {
+std::map<TxType, TransactorWrapper> transactorMap{
     {ttACCOUNT_DELETE, transactor_helper<DeleteAccount>()},
     {ttACCOUNT_SET, transactor_helper<SetAccount>()},
     {ttCHECK_CANCEL, transactor_helper<CancelCheck>()},
@@ -132,14 +135,13 @@ consequences_helper(PreflightContext const& ctx)
 static std::pair<NotTEC, TxConsequences>
 invoke_preflight(PreflightContext const& ctx)
 {
-    if (auto it = transactorMap.find(ctx.tx.getTxnType()); 
+    if (auto it = transactorMap.find(ctx.tx.getTxnType());
         it != transactorMap.end())
     {
         auto const tec = it->second.preflight(ctx);
         return {
             tec,
-            isTesSuccess(tec) ? consequences_helper(ctx) : TxConsequences{tec}
-        };
+            isTesSuccess(tec) ? consequences_helper(ctx) : TxConsequences{tec}};
     }
     assert(false);
     return {temUNKNOWN, TxConsequences{temUNKNOWN}};
@@ -186,11 +188,11 @@ invoke_preclaim(PreclaimContext const& ctx)
 static TER
 invoke_preclaim(PreclaimContext const& ctx)
 {
-    if (auto it = transactorMap.find(ctx.tx.getTxnType()); 
+    if (auto it = transactorMap.find(ctx.tx.getTxnType());
         it != transactorMap.end())
     {
-        // If the transactor requires a valid account and the transaction doesn't
-        // list one, preflight will have already a flagged a failure.
+        // If the transactor requires a valid account and the transaction
+        // doesn't list one, preflight will have already a flagged a failure.
         auto const id = ctx.tx.getAccountID(sfAccount);
 
         if (id != beast::zero)
@@ -205,7 +207,8 @@ invoke_preclaim(PreclaimContext const& ctx)
             if (result != tesSUCCESS)
                 return result;
 
-            result = Transactor::checkFee(ctx, calculateBaseFee(ctx.view, ctx.tx));
+            result =
+                Transactor::checkFee(ctx, calculateBaseFee(ctx.view, ctx.tx));
 
             if (result != tesSUCCESS)
                 return result;
@@ -225,7 +228,7 @@ invoke_preclaim(PreclaimContext const& ctx)
 static XRPAmount
 invoke_calculateBaseFee(ReadView const& view, STTx const& tx)
 {
-    if (auto it = transactorMap.find(tx.getTxnType()); 
+    if (auto it = transactorMap.find(tx.getTxnType());
         it != transactorMap.end())
     {
         return it->second.calculateBaseFee(view, tx);
@@ -237,7 +240,7 @@ invoke_calculateBaseFee(ReadView const& view, STTx const& tx)
 static std::pair<TER, bool>
 invoke_apply(ApplyContext& ctx)
 {
-    if (auto it = transactorMap.find(ctx.tx.getTxnType()); 
+    if (auto it = transactorMap.find(ctx.tx.getTxnType());
         it != transactorMap.end())
     {
         return it->second.apply(ctx);

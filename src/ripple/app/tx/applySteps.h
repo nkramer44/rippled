@@ -20,9 +20,9 @@
 #ifndef RIPPLE_TX_APPLYSTEPS_H_INCLUDED
 #define RIPPLE_TX_APPLYSTEPS_H_INCLUDED
 
+#include <ripple/app/tx/impl/TxConsequences.h>
 #include <ripple/beast/utility/Journal.h>
 #include <ripple/ledger/ApplyViewImpl.h>
-#include <ripple/app/tx/impl/TxConsequences.h>
 
 namespace ripple {
 

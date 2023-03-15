@@ -1,6 +1,6 @@
 
-#include <ripple/app/tx/impl/TxConsequences.h>
 #include <ripple/app/main/Application.h>
+#include <ripple/app/tx/impl/TxConsequences.h>
 #include <ripple/basics/XRPAmount.h>
 #include <ripple/beast/utility/Journal.h>
 #include <ripple/core/Config.h>
@@ -50,4 +50,4 @@ TxConsequences::TxConsequences(STTx const& tx, std::uint32_t sequencesConsumed)
     sequencesConsumed_ = sequencesConsumed;
 }
 
-}
+}  // namespace ripple

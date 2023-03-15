@@ -114,3 +114,4 @@ cpp_pt_build
 python_pt_build
 .build
 .cupcake.toml
+.vscode
