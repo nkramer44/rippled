@@ -22,7 +22,11 @@ DummyTx::preflight(PreflightContext const& ctx)
     py::print("IN PREFLIGHTTTTTTT");
     py::object preflight = py::module_::import("plugin").attr("preflight");
     py::object preflightReturn = preflight(py::cast(ctx, py::return_value_policy::reference));
-    return NotTEC::fromInt(preflightReturn.cast<int>());
+    try {
+        return NotTEC::fromInt(preflightReturn.cast<int>());
+    } catch (const py::cast_error &) { // TODO: figure out the exact error that is thrown
+        return preflightReturn.cast<NotTEC>();
+    }
 }
 
 TER
