@@ -331,8 +331,11 @@ TxFormats::TxFormats()
     add(jss::DummyTx,
         ttDUMMY_TX,
         {
+            {sfRegularKey, soeOPTIONAL},
+            {sfTicketSequence, soeOPTIONAL},
         },
         commonFields);
+    
 }
 
 TxFormats const&
