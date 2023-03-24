@@ -123,7 +123,7 @@ std::map<TxType, TransactorWrapper> transactorMap{
     {ttNFTOKEN_CREATE_OFFER, transactor_helper<NFTokenCreateOffer>()},
     {ttNFTOKEN_CANCEL_OFFER, transactor_helper<NFTokenCancelOffer>()},
     {ttNFTOKEN_ACCEPT_OFFER, transactor_helper<NFTokenAcceptOffer>()},
-    {ttDUMMY_TX, transactor_helper<DummyTx>()},
+    {ttDUMMY_TX, transactor_helper("/Users/mvadari/Documents/plugin_transactor/python/libdummy_tx.dylib")},
 };
 
 TxConsequences
