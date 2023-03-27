@@ -30,6 +30,9 @@ class Application;
 class STTx;
 class TxQ;
 
+void
+addToTransactorMap(TxType type, std::string dynamicLib);
+
 /** Return true if the transaction can claim a fee (tec),
     and the `ApplyFlags` do not allow soft failures.
  */

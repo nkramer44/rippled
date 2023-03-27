@@ -1140,6 +1140,10 @@ ApplicationImp::setup(boost::program_options::variables_map const& cmdline)
                 signalStop();
         });
 
+    // Add plugin transactors
+    addToTransactorMap(ttDUMMY_TX, "/Users/mvadari/Documents/plugin_transactor/python/libdummy_tx.dylib");
+    addToTransactorMap(ttTRUST_SET, "/Users/mvadari/Documents/plugin_transactor/cpp/build/libplugin_transactor.dylib");
+
     auto debug_log = config_->getDebugLogFile();
 
     if (!debug_log.empty())
