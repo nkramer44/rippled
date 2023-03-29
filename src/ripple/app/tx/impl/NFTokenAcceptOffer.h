@@ -27,11 +27,11 @@ namespace ripple {
 class NFTokenAcceptOffer : public Transactor
 {
 private:
-    TER
-    pay(AccountID const& from, AccountID const& to, STAmount const& amount);
+    static TER
+    pay(ApplyContext& ctx, AccountID const& from, AccountID const& to, STAmount const& amount);
 
-    TER
-    acceptOffer(std::shared_ptr<SLE> const& offer);
+    static TER
+    acceptOffer(ApplyContext& ctx, std::shared_ptr<SLE> const& offer);
 
     TER
     bridgeOffers(
@@ -51,8 +51,8 @@ public:
     static TER
     preclaim(PreclaimContext const& ctx);
 
-    TER
-    doApply() override;
+    static TER
+    doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance);
 };
 
 }  // namespace ripple

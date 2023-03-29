@@ -73,7 +73,7 @@ SetRegularKey::preflight(PreflightContext const& ctx)
 }
 
 TER
-SetRegularKey::doApply()
+SetRegularKey::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const sle = ctx.view().peek(keylet::account(ctx.tx.getAccountID(sfAccount)));
     if (!sle)

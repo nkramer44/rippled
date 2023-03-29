@@ -261,7 +261,7 @@ CreateOffer::checkAcceptAsset(
 }
 
 bool
-CreateOffer::dry_offer(ApplyView& view, Offer const& offer)
+CreateOffer::dry_offer(ApplyContext& ctx, ApplyView& view, Offer const& offer)
 {
     if (offer.fully_consumed())
         return true;
@@ -308,7 +308,7 @@ CreateOffer::select_path(
 }
 
 bool
-CreateOffer::reachedOfferCrossingLimit(Taker const& taker) const
+CreateOffer::reachedOfferCrossingLimit(Taker const& taker)
 {
     auto const crossings =
         taker.get_direct_crossings() + (2 * taker.get_bridge_crossings());
@@ -320,6 +320,8 @@ CreateOffer::reachedOfferCrossingLimit(Taker const& taker) const
 
 std::pair<TER, Amounts>
 CreateOffer::bridged_cross(
+    ApplyContext& ctx,
+    OfferStream::StepCounter stepCounter,
     Taker& taker,
     ApplyView& view,
     ApplyView& view_cancel,
@@ -337,7 +339,7 @@ CreateOffer::bridged_cross(
         view_cancel,
         Book(taker.issue_in(), taker.issue_out()),
         when,
-        stepCounter_,
+        stepCounter,
         ctx.journal);
 
     OfferStream offers_leg1(
@@ -345,7 +347,7 @@ CreateOffer::bridged_cross(
         view_cancel,
         Book(taker.issue_in(), xrpIssue()),
         when,
-        stepCounter_,
+        stepCounter,
         ctx.journal);
 
     OfferStream offers_leg2(
@@ -353,7 +355,7 @@ CreateOffer::bridged_cross(
         view_cancel,
         Book(xrpIssue(), taker.issue_out()),
         when,
-        stepCounter_,
+        stepCounter,
         ctx.journal);
 
     TER cross_result = tesSUCCESS;
@@ -407,7 +409,7 @@ CreateOffer::bridged_cross(
 
             JLOG(ctx.journal.debug()) << "Direct Result: " << transToken(cross_result);
 
-            if (dry_offer(view, offers_direct.tip()))
+            if (dry_offer(ctx, view, offers_direct.tip()))
             {
                 direct_consumed = true;
                 have_direct = step_account(offers_direct, taker);
@@ -452,11 +454,11 @@ CreateOffer::bridged_cross(
             {
                 // have_bridge can be true the next time 'round only if
                 // neither of the OfferStreams are dry.
-                leg1_consumed = dry_offer(view, offers_leg1.tip());
+                leg1_consumed = dry_offer(ctx, view, offers_leg1.tip());
                 if (leg1_consumed)
                     have_bridge &= offers_leg1.step();
 
-                leg2_consumed = dry_offer(view, offers_leg2.tip());
+                leg2_consumed = dry_offer(ctx, view, offers_leg2.tip());
                 if (leg2_consumed)
                     have_bridge &= offers_leg2.step();
             }
@@ -464,12 +466,12 @@ CreateOffer::bridged_cross(
             {
                 // This old behavior may leave an empty offer in the book for
                 // the second leg.
-                if (dry_offer(view, offers_leg1.tip()))
+                if (dry_offer(ctx, view, offers_leg1.tip()))
                 {
                     leg1_consumed = true;
                     have_bridge = (have_bridge && offers_leg1.step());
                 }
-                if (dry_offer(view, offers_leg2.tip()))
+                if (dry_offer(ctx, view, offers_leg2.tip()))
                 {
                     leg2_consumed = true;
                     have_bridge = (have_bridge && offers_leg2.step());
@@ -509,6 +511,8 @@ CreateOffer::bridged_cross(
 
 std::pair<TER, Amounts>
 CreateOffer::direct_cross(
+    ApplyContext& ctx,
+    OfferStream::StepCounter stepCounter,
     Taker& taker,
     ApplyView& view,
     ApplyView& view_cancel,
@@ -519,7 +523,7 @@ CreateOffer::direct_cross(
         view_cancel,
         Book(taker.issue_in(), taker.issue_out()),
         when,
-        stepCounter_,
+        stepCounter,
         ctx.journal);
 
     TER cross_result(tesSUCCESS);
@@ -561,7 +565,7 @@ CreateOffer::direct_cross(
 
         JLOG(ctx.journal.debug()) << "Direct Result: " << transToken(cross_result);
 
-        if (dry_offer(view, offer))
+        if (dry_offer(ctx, view, offer))
         {
             direct_consumed = true;
             have_offer = step_account(offers, taker);
@@ -625,16 +629,25 @@ CreateOffer::step_account(OfferStream& stream, Taker const& taker)
 // the offer to left unfilled.
 std::pair<TER, Amounts>
 CreateOffer::takerCross(
+    ApplyContext& ctx,
     Sandbox& sb,
     Sandbox& sbCancel,
     Amounts const& takerAmount)
 {
     NetClock::time_point const when = sb.parentCloseTime();
 
+    auto cross_type = CrossType::IouToIou;
+    bool const pays_xrp = ctx.tx.getFieldAmount(sfTakerPays).native();
+    bool const gets_xrp = ctx.tx.getFieldAmount(sfTakerGets).native();
+    if (pays_xrp && !gets_xrp)
+        cross_type = CrossType::IouToXrp;
+    else if (gets_xrp && !pays_xrp)
+        cross_type = CrossType::XrpToIou;
+
     beast::WrappedSink takerSink(ctx.journal, "Taker ");
 
     Taker taker(
-        cross_type_,
+        cross_type,
         sb,
         ctx.tx.getAccountID(sfAccount),
         takerAmount,
@@ -656,10 +669,11 @@ CreateOffer::takerCross(
 
     try
     {
-        if (cross_type_ == CrossType::IouToIou)
-            return bridged_cross(taker, sb, sbCancel, when);
+        auto const stepCounter = OfferStream::StepCounter(1000, ctx.journal);
+        if (cross_type == CrossType::IouToIou)
+            return bridged_cross(ctx, stepCounter, taker, sb, sbCancel, when);
 
-        return direct_cross(taker, sb, sbCancel, when);
+        return direct_cross(ctx, stepCounter, taker, sb, sbCancel, when);
     }
     catch (std::exception const& e)
     {
@@ -670,6 +684,7 @@ CreateOffer::takerCross(
 
 std::pair<TER, Amounts>
 CreateOffer::flowCross(
+    ApplyContext& ctx,
     PaymentSandbox& psb,
     PaymentSandbox& psbCancel,
     Amounts const& takerAmount)
@@ -853,13 +868,13 @@ CreateOffer::flowCross(
 }
 
 std::pair<TER, Amounts>
-CreateOffer::cross(Sandbox& sb, Sandbox& sbCancel, Amounts const& takerAmount)
+CreateOffer::cross(ApplyContext& ctx, Sandbox& sb, Sandbox& sbCancel, Amounts const& takerAmount)
 {
     if (sb.rules().enabled(featureFlowCross))
     {
         PaymentSandbox psbFlow{&sb};
         PaymentSandbox psbCancelFlow{&sbCancel};
-        auto const ret = flowCross(psbFlow, psbCancelFlow, takerAmount);
+        auto const ret = flowCross(ctx, psbFlow, psbCancelFlow, takerAmount);
         psbFlow.apply(sb);
         psbCancelFlow.apply(sbCancel);
         return ret;
@@ -867,7 +882,7 @@ CreateOffer::cross(Sandbox& sb, Sandbox& sbCancel, Amounts const& takerAmount)
 
     Sandbox sbTaker{&sb};
     Sandbox sbCancelTaker{&sbCancel};
-    auto const ret = takerCross(sbTaker, sbCancelTaker, takerAmount);
+    auto const ret = takerCross(ctx, sbTaker, sbCancelTaker, takerAmount);
     sbTaker.apply(sb);
     sbCancelTaker.apply(sbCancel);
     return ret;
@@ -882,22 +897,8 @@ CreateOffer::format_amount(STAmount const& amount)
     return txt;
 }
 
-void
-CreateOffer::preCompute()
-{
-    cross_type_ = CrossType::IouToIou;
-    bool const pays_xrp = ctx.tx.getFieldAmount(sfTakerPays).native();
-    bool const gets_xrp = ctx.tx.getFieldAmount(sfTakerGets).native();
-    if (pays_xrp && !gets_xrp)
-        cross_type_ = CrossType::IouToXrp;
-    else if (gets_xrp && !pays_xrp)
-        cross_type_ = CrossType::XrpToIou;
-
-    return Transactor::preCompute();
-}
-
 std::pair<TER, bool>
-CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
+CreateOffer::applyGuts(ApplyContext& ctx, XRPAmount mPriorBalance, Sandbox& sb, Sandbox& sbCancel)
 {
     using beast::zero;
 
@@ -1026,7 +1027,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
             stream << "    out: " << format_amount(takerAmount.out);
         }
 
-        std::tie(result, place_offer) = cross(sb, sbCancel, takerAmount);
+        std::tie(result, place_offer) = cross(ctx, sb, sbCancel, takerAmount);
 
         // We expect the implementation of cross to succeed
         // or give a tec.
@@ -1207,7 +1208,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
 }
 
 TER
-CreateOffer::doApply()
+CreateOffer::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     // This is the ledger view that we work against. Transactions are applied
     // as we go on processing transactions.
@@ -1218,7 +1219,7 @@ CreateOffer::doApply()
     // if the order isn't going to be placed, to avoid wasting the work we did.
     Sandbox sbCancel(&ctx.view());
 
-    auto const result = applyGuts(sb, sbCancel);
+    auto const result = applyGuts(ctx, mPriorBalance, sb, sbCancel);
     if (result.second)
         sb.apply(ctx.rawView());
     else

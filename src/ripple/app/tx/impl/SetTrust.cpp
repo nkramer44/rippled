@@ -146,7 +146,7 @@ SetTrust::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-SetTrust::doApply()
+SetTrust::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     TER terResult = tesSUCCESS;
 

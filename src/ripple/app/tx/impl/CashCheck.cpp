@@ -250,7 +250,7 @@ CashCheck::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-CashCheck::doApply()
+CashCheck::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     // Flow requires that we operate on a PaymentSandbox, rather than
     // directly on a View.

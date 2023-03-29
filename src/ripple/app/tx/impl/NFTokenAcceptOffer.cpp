@@ -275,6 +275,7 @@ NFTokenAcceptOffer::preclaim(PreclaimContext const& ctx)
 
 TER
 NFTokenAcceptOffer::pay(
+    ApplyContext& ctx,
     AccountID const& from,
     AccountID const& to,
     STAmount const& amount)
@@ -302,7 +303,7 @@ NFTokenAcceptOffer::pay(
 }
 
 TER
-NFTokenAcceptOffer::acceptOffer(std::shared_ptr<SLE> const& offer)
+NFTokenAcceptOffer::acceptOffer(ApplyContext& ctx, std::shared_ptr<SLE> const& offer)
 {
     bool const isSell = offer->isFlag(lsfSellNFToken);
     AccountID const owner = (*offer)[sfOwner];
@@ -321,14 +322,14 @@ NFTokenAcceptOffer::acceptOffer(std::shared_ptr<SLE> const& offer)
             if (auto const issuer = nft::getIssuer(nftokenID);
                 cut != beast::zero && seller != issuer && buyer != issuer)
             {
-                if (auto const r = pay(buyer, issuer, cut); !isTesSuccess(r))
+                if (auto const r = pay(ctx, buyer, issuer, cut); !isTesSuccess(r))
                     return r;
                 amount -= cut;
             }
         }
 
         // Send the remaining funds to the seller of the NFT
-        if (auto const r = pay(buyer, seller, amount); !isTesSuccess(r))
+        if (auto const r = pay(ctx, buyer, seller, amount); !isTesSuccess(r))
             return r;
     }
 
@@ -347,17 +348,17 @@ NFTokenAcceptOffer::acceptOffer(std::shared_ptr<SLE> const& offer)
 }
 
 TER
-NFTokenAcceptOffer::doApply()
+NFTokenAcceptOffer::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
-    auto const loadToken = [this](std::optional<uint256> const& id) {
+    auto const loadToken = [](ApplyContext& ctx, std::optional<uint256> const& id) {
         std::shared_ptr<SLE> sle;
         if (id)
             sle = ctx.view().peek(keylet::nftoffer(*id));
         return sle;
     };
 
-    auto bo = loadToken(ctx.tx[~sfNFTokenBuyOffer]);
-    auto so = loadToken(ctx.tx[~sfNFTokenSellOffer]);
+    auto bo = loadToken(ctx, ctx.tx[~sfNFTokenBuyOffer]);
+    auto so = loadToken(ctx, ctx.tx[~sfNFTokenSellOffer]);
 
     if (bo && !nft::deleteTokenOffer(ctx.view(), bo))
     {
@@ -401,7 +402,7 @@ NFTokenAcceptOffer::doApply()
         if (auto const cut = ctx.tx[~sfNFTokenBrokerFee];
             cut && cut.value() != beast::zero)
         {
-            if (auto const r = pay(buyer, ctx.tx.getAccountID(sfAccount), cut.value());
+            if (auto const r = pay(ctx, buyer, ctx.tx.getAccountID(sfAccount), cut.value());
                 !isTesSuccess(r))
                 return r;
 
@@ -417,7 +418,7 @@ NFTokenAcceptOffer::doApply()
             if (auto const issuer = nft::getIssuer(nftokenID);
                 seller != issuer && buyer != issuer)
             {
-                if (auto const r = pay(buyer, issuer, cut); !isTesSuccess(r))
+                if (auto const r = pay(ctx, buyer, issuer, cut); !isTesSuccess(r))
                     return r;
 
                 amount -= cut;
@@ -427,7 +428,7 @@ NFTokenAcceptOffer::doApply()
         // And send whatever remains to the seller.
         if (amount > beast::zero)
         {
-            if (auto const r = pay(buyer, seller, amount); !isTesSuccess(r))
+            if (auto const r = pay(ctx, buyer, seller, amount); !isTesSuccess(r))
                 return r;
         }
 
@@ -445,10 +446,10 @@ NFTokenAcceptOffer::doApply()
     }
 
     if (bo)
-        return acceptOffer(bo);
+        return acceptOffer(ctx, bo);
 
     if (so)
-        return acceptOffer(so);
+        return acceptOffer(ctx, so);
 
     return tecINTERNAL;
 }

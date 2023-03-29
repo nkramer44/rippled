@@ -104,7 +104,7 @@ DepositPreauth::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-DepositPreauth::doApply()
+DepositPreauth::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     if (ctx.tx.isFieldPresent(sfAuthorize))
     {

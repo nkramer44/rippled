@@ -82,7 +82,7 @@ CreateTicket::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-CreateTicket::doApply()
+CreateTicket::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     SLE::pointer const sleAccountRoot = ctx.view().peek(keylet::account(ctx.tx.getAccountID(sfAccount)));
     if (!sleAccountRoot)

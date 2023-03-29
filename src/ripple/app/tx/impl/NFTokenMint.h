@@ -40,8 +40,8 @@ public:
     static TER
     preclaim(PreclaimContext const& ctx);
 
-    TER
-    doApply() override;
+    static TER
+    doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance);
 
     // Public to support unit tests.
     static uint256

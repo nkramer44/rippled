@@ -138,16 +138,16 @@ Change::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-Change::doApply()
+Change::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     switch (ctx.tx.getTxnType())
     {
         case ttAMENDMENT:
-            return applyAmendment();
+            return applyAmendment(ctx, mPriorBalance, mSourceBalance);
         case ttFEE:
-            return applyFee();
+            return applyFee(ctx, mPriorBalance, mSourceBalance);
         case ttUNL_MODIFY:
-            return applyUNLModify();
+            return applyUNLModify(ctx, mPriorBalance, mSourceBalance);
         default:
             assert(0);
             return tefFAILURE;
@@ -161,11 +161,11 @@ Change::preCompute()
 }
 
 void
-Change::activateTrustLinesToSelfFix()
+Change::activateTrustLinesToSelfFix(ApplyContext& ctx)
 {
     JLOG(ctx.journal.warn()) << "fixTrustLinesToSelf amendment activation code starting";
 
-    auto removeTrustLineToSelf = [this](Sandbox& sb, uint256 id) {
+    auto removeTrustLineToSelf = [](ApplyContext& ctx, Sandbox& sb, uint256 id) {
         auto tl = sb.peek(keylet::child(id));
 
         if (tl == nullptr)
@@ -228,10 +228,12 @@ Change::activateTrustLinesToSelfFix()
     Sandbox sb(&ctx.view());
 
     if (removeTrustLineToSelf(
+            ctx,
             sb,
             uint256{
                 "2F8F21EFCAFD7ACFB07D5BB04F0D2E18587820C7611305BB674A64EAB0FA71E1"sv}) &&
         removeTrustLineToSelf(
+            ctx,
             sb,
             uint256{
                 "326035D5C0560A9DA8636545DD5A1B0DFCFF63E68D491B5522B767BB00564B1A"sv}))
@@ -243,7 +245,7 @@ Change::activateTrustLinesToSelfFix()
 }
 
 TER
-Change::applyAmendment()
+Change::applyAmendment(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     uint256 amendment(ctx.tx.getFieldH256(sfAmendment));
 
@@ -319,7 +321,7 @@ Change::applyAmendment()
         amendmentObject->setFieldV256(sfAmendments, amendments);
 
         if (amendment == fixTrustLinesToSelf)
-            activateTrustLinesToSelfFix();
+            activateTrustLinesToSelfFix(ctx);
 
         ctx.app.getAmendmentTable().enable(amendment);
 
@@ -342,7 +344,7 @@ Change::applyAmendment()
 }
 
 TER
-Change::applyFee()
+Change::applyFee(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const k = keylet::fees();
 
@@ -382,7 +384,7 @@ Change::applyFee()
 }
 
 TER
-Change::applyUNLModify()
+Change::applyUNLModify(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     if (!isFlagLedger(ctx.view().seq()))
     {

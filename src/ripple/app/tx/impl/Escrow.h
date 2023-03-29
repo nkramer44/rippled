@@ -39,8 +39,8 @@ public:
     static NotTEC
     preflight(PreflightContext const& ctx);
 
-    TER
-    doApply() override;
+    static TER
+    doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance);
 };
 
 //------------------------------------------------------------------------------
@@ -60,8 +60,8 @@ public:
     static XRPAmount
     calculateBaseFee(ReadView const& view, STTx const& tx);
 
-    TER
-    doApply() override;
+    static TER
+    doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance);
 };
 
 //------------------------------------------------------------------------------
@@ -78,8 +78,8 @@ public:
     static NotTEC
     preflight(PreflightContext const& ctx);
 
-    TER
-    doApply() override;
+    static TER
+    doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance);
 };
 
 }  // namespace ripple

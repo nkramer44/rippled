@@ -239,7 +239,7 @@ PayChanCreate::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-PayChanCreate::doApply()
+PayChanCreate::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const account = ctx.tx[sfAccount];
     auto const sle = ctx.view().peek(keylet::account(account));
@@ -323,7 +323,7 @@ PayChanFund::preflight(PreflightContext const& ctx)
 }
 
 TER
-PayChanFund::doApply()
+PayChanFund::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     Keylet const k(ltPAYCHAN, ctx.tx[sfChannel]);
     auto const slep = ctx.view().peek(k);
@@ -454,7 +454,7 @@ PayChanClaim::preflight(PreflightContext const& ctx)
 }
 
 TER
-PayChanClaim::doApply()
+PayChanClaim::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     Keylet const k(ltPAYCHAN, ctx.tx[sfChannel]);
     auto const slep = ctx.view().peek(k);

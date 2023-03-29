@@ -152,8 +152,11 @@ protected:
     virtual void
     preCompute();
 
-    virtual TER
-    doApply() = 0;
+    static TER
+    doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
+    {
+        return tesSUCCESS;
+    }
 
     /** Compute the minimum fee required to process a transaction
         with a given baseFee based on the current server load.

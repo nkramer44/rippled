@@ -114,16 +114,25 @@ SetSignerList::preflight(PreflightContext const& ctx)
 }
 
 TER
-SetSignerList::doApply()
+SetSignerList::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
+    // Get the quorum and operation info.
+    auto result = determineOperation(ctx.tx, ctx.view().flags(), ctx.journal);
+    assert(std::get<0>(result) == tesSUCCESS);
+    assert(std::get<3>(result) != unknown);
+
+    auto quorum = std::get<1>(result);
+    auto signers = std::get<2>(result);
+    auto action = std::get<3>(result);
+
     // Perform the operation preCompute() decided on.
-    switch (do_)
+    switch (action)
     {
         case set:
-            return replaceSignerList();
+            return replaceSignerList(ctx, mPriorBalance, signers, quorum);
 
         case destroy:
-            return destroySignerList();
+            return destroySignerList(ctx);
 
         default:
             break;
@@ -135,14 +144,6 @@ SetSignerList::doApply()
 void
 SetSignerList::preCompute()
 {
-    // Get the quorum and operation info.
-    auto result = determineOperation(ctx.tx, ctx.view().flags(), ctx.journal);
-    assert(std::get<0>(result) == tesSUCCESS);
-    assert(std::get<3>(result) != unknown);
-
-    quorum_ = std::get<1>(result);
-    signers_ = std::get<2>(result);
-    do_ = std::get<3>(result);
 
     return Transactor::preCompute();
 }
@@ -310,7 +311,11 @@ SetSignerList::validateQuorumAndSignerEntries(
 }
 
 TER
-SetSignerList::replaceSignerList()
+SetSignerList::replaceSignerList(
+    ApplyContext& ctx,
+    XRPAmount mPriorBalance,
+    std::vector<SignerEntries::SignerEntry> signers,
+    std::uint32_t quorum)
 {
     auto const accountKeylet = keylet::account(ctx.tx.getAccountID(sfAccount));
     auto const ownerDirKeylet = keylet::ownerDir(ctx.tx.getAccountID(sfAccount));
@@ -341,7 +346,7 @@ SetSignerList::replaceSignerList()
     if (!ctx.view().rules().enabled(featureMultiSignReserve))
     {
         addedOwnerCount = signerCountBasedOwnerCountDelta(
-            signers_.size(), ctx.view().rules());
+            signers.size(), ctx.view().rules());
         flags = 0;
     }
 
@@ -357,7 +362,7 @@ SetSignerList::replaceSignerList()
     // Everything's ducky.  Add the ltSIGNER_LIST to the ledger.
     auto signerList = std::make_shared<SLE>(signerListKeylet);
     ctx.view().insert(signerList);
-    writeSignersToSLE(signerList, flags);
+    writeSignersToSLE(ctx, signers, quorum, signerList, flags);
 
     auto viewJ = ctx.app.journal("View");
     // Add the signer list to the account's directory.
@@ -379,7 +384,7 @@ SetSignerList::replaceSignerList()
 }
 
 TER
-SetSignerList::destroySignerList()
+SetSignerList::destroySignerList(ApplyContext& ctx)
 {
     auto const accountKeylet = keylet::account(ctx.tx.getAccountID(sfAccount));
     // Destroying the signer list is only allowed if either the master key
@@ -400,11 +405,14 @@ SetSignerList::destroySignerList()
 
 void
 SetSignerList::writeSignersToSLE(
+    ApplyContext& ctx,
+    std::vector<SignerEntries::SignerEntry> signers,
+    std::uint32_t quorum,
     SLE::pointer const& ledgerEntry,
-    std::uint32_t flags) const
+    std::uint32_t flags)
 {
     // Assign the quorum, default SignerListID, and flags.
-    ledgerEntry->setFieldU32(sfSignerQuorum, quorum_);
+    ledgerEntry->setFieldU32(sfSignerQuorum, quorum);
     ledgerEntry->setFieldU32(sfSignerListID, defaultSignerListID_);
     if (flags)  // Only set flags if they are non-default (default is zero).
         ledgerEntry->setFieldU32(sfFlags, flags);
@@ -413,8 +421,8 @@ SetSignerList::writeSignersToSLE(
         ctx.view().rules().enabled(featureExpandedSignerList);
 
     // Create the SignerListArray one SignerEntry at a time.
-    STArray toLedger(signers_.size());
-    for (auto const& entry : signers_)
+    STArray toLedger(signers.size());
+    for (auto const& entry : signers)
     {
         toLedger.emplace_back(sfSignerEntry);
         STObject& obj = toLedger.back();

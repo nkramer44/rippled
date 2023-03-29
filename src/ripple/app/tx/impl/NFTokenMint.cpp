@@ -150,11 +150,11 @@ NFTokenMint::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-NFTokenMint::doApply()
+NFTokenMint::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const issuer = ctx.tx[~sfIssuer].value_or(ctx.tx.getAccountID(sfAccount));
 
-    auto const tokenSeq = [this, &issuer]() -> Expected<std::uint32_t, TER> {
+    auto const tokenSeq = [&issuer](ApplyContext& ctx) -> Expected<std::uint32_t, TER> {
         auto const root = ctx.view().peek(keylet::account(issuer));
         if (root == nullptr)
             // Should not happen.  Checked in preclaim.
@@ -171,7 +171,7 @@ NFTokenMint::doApply()
         }
         ctx.view().update(root);
         return tokenSeq;
-    }();
+    }(ctx);
 
     if (!tokenSeq.has_value())
         return (tokenSeq.error());
@@ -190,7 +190,7 @@ NFTokenMint::doApply()
     STObject newToken(
         *nfTokenTemplate,
         sfNFToken,
-        [this, &issuer, &tokenSeq](STObject& object) {
+        [&ctx, &issuer, &tokenSeq](STObject& object) {
             object.setFieldH256(
                 sfNFTokenID,
                 createNFTokenID(

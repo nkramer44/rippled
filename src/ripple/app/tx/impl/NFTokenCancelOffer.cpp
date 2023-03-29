@@ -96,7 +96,7 @@ NFTokenCancelOffer::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-NFTokenCancelOffer::doApply()
+NFTokenCancelOffer::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     for (auto const& id : ctx.tx[sfNFTokenOffers])
     {

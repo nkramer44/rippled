@@ -219,7 +219,7 @@ NFTokenCreateOffer::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-NFTokenCreateOffer::doApply()
+NFTokenCreateOffer::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     if (auto const acct = ctx.view().read(keylet::account(ctx.tx[sfAccount]));
         mPriorBalance < ctx.view().fees().accountReserve((*acct)[sfOwnerCount] + 1))

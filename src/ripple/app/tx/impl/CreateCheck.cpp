@@ -161,7 +161,7 @@ CreateCheck::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-CreateCheck::doApply()
+CreateCheck::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const sle = ctx.view().peek(keylet::account(ctx.tx.getAccountID(sfAccount)));
     if (!sle)

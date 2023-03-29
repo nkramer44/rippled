@@ -73,7 +73,7 @@ CancelOffer::preclaim(PreclaimContext const& ctx)
 //------------------------------------------------------------------------------
 
 TER
-CancelOffer::doApply()
+CancelOffer::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const offerSequence = ctx.tx[sfOfferSequence];
 

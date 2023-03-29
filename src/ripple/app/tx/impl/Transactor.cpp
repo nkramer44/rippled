@@ -450,7 +450,7 @@ Transactor::apply()
         ctx.view().update(sle);
     }
 
-    return doApply();
+    return doApply(ctx, mPriorBalance, mSourceBalance);
 }
 
 NotTEC

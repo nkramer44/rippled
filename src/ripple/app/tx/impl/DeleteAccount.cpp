@@ -264,7 +264,7 @@ DeleteAccount::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-DeleteAccount::doApply()
+DeleteAccount::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto src = ctx.view().peek(keylet::account(ctx.tx.getAccountID(sfAccount)));
     assert(src);

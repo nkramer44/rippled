@@ -298,7 +298,7 @@ Payment::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-Payment::doApply()
+Payment::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const deliverMin = ctx.tx[~sfDeliverMin];
 

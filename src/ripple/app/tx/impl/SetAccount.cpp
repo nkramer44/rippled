@@ -222,7 +222,7 @@ SetAccount::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-SetAccount::doApply()
+SetAccount::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     AccountID const account_ = ctx.tx.getAccountID(sfAccount);
     auto const sle = ctx.view().peek(keylet::account(account_));

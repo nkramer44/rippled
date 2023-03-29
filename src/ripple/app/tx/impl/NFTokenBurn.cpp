@@ -88,7 +88,7 @@ NFTokenBurn::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-NFTokenBurn::doApply()
+NFTokenBurn::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     // Remove the token, effectively burning it:
     auto const ret = nft::removeToken(

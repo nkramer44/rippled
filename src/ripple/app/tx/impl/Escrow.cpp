@@ -157,7 +157,7 @@ EscrowCreate::preflight(PreflightContext const& ctx)
 }
 
 TER
-EscrowCreate::doApply()
+EscrowCreate::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const closeTime = ctx.view().info().parentCloseTime;
 
@@ -352,7 +352,7 @@ EscrowFinish::calculateBaseFee(ReadView const& view, STTx const& tx)
 }
 
 TER
-EscrowFinish::doApply()
+EscrowFinish::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const k = keylet::escrow(ctx.tx[sfOwner], ctx.tx[sfOfferSequence]);
     auto const slep = ctx.view().peek(k);
@@ -513,7 +513,7 @@ EscrowCancel::preflight(PreflightContext const& ctx)
 }
 
 TER
-EscrowCancel::doApply()
+EscrowCancel::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const k = keylet::escrow(ctx.tx[sfOwner], ctx.tx[sfOfferSequence]);
     auto const slep = ctx.view().peek(k);

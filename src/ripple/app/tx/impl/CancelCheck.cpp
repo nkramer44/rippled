@@ -86,7 +86,7 @@ CancelCheck::preclaim(PreclaimContext const& ctx)
 }
 
 TER
-CancelCheck::doApply()
+CancelCheck::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
     auto const sleCheck = ctx.view().peek(keylet::check(ctx.tx[sfCheckID]));
     if (!sleCheck)

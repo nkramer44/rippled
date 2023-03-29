@@ -44,11 +44,11 @@ public:
     //
     // For the example compute-intensive Payment a Discrepancy unit test
     // unit test Payment with 3 paths was chosen.  With all the latest
-    // amendments enabled, that Payment::doApply() operation took, on
+    // amendments enabled, that Payment::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance) operation took, on
     // average, 1.25 ms.
     //
     // Using that same test set up creating 250 Tickets in a single
-    // CreateTicket::doApply() in a unit test took, on average, 1.21 ms.
+    // CreateTicket::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance) in a unit test took, on average, 1.21 ms.
     //
     // So, for the moment, a single transaction creating 250 Tickets takes
     // about the same compute time as a single compute-intensive payment.
@@ -80,8 +80,8 @@ public:
     preclaim(PreclaimContext const& ctx);
 
     /** Precondition: fee collection is likely.  Attempt to create ticket(s). */
-    TER
-    doApply() override;
+    static TER
+    doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance);
 };
 
 }  // namespace ripple
