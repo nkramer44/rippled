@@ -75,19 +75,19 @@ CancelOffer::preclaim(PreclaimContext const& ctx)
 TER
 CancelOffer::doApply()
 {
-    auto const offerSequence = ctx_.tx[sfOfferSequence];
+    auto const offerSequence = ctx.tx[sfOfferSequence];
 
-    auto const sle = view().read(keylet::account(account_));
+    auto const sle = ctx.view().read(keylet::account(ctx.tx.getAccountID(sfAccount)));
     if (!sle)
         return tefINTERNAL;
 
-    if (auto sleOffer = view().peek(keylet::offer(account_, offerSequence)))
+    if (auto sleOffer = ctx.view().peek(keylet::offer(ctx.tx.getAccountID(sfAccount), offerSequence)))
     {
-        JLOG(j_.debug()) << "Trying to cancel offer #" << offerSequence;
-        return offerDelete(view(), sleOffer, ctx_.app.journal("View"));
+        JLOG(ctx.journal.debug()) << "Trying to cancel offer #" << offerSequence;
+        return offerDelete(ctx.view(), sleOffer, ctx.app.journal("View"));
     }
 
-    JLOG(j_.debug()) << "Offer #" << offerSequence << " can't be found.";
+    JLOG(ctx.journal.debug()) << "Offer #" << offerSequence << " can't be found.";
     return tesSUCCESS;
 }
 

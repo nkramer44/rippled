@@ -98,13 +98,13 @@ NFTokenCancelOffer::preclaim(PreclaimContext const& ctx)
 TER
 NFTokenCancelOffer::doApply()
 {
-    for (auto const& id : ctx_.tx[sfNFTokenOffers])
+    for (auto const& id : ctx.tx[sfNFTokenOffers])
     {
-        if (auto offer = view().peek(keylet::nftoffer(id));
-            offer && !nft::deleteTokenOffer(view(), offer))
+        if (auto offer = ctx.view().peek(keylet::nftoffer(id));
+            offer && !nft::deleteTokenOffer(ctx.view(), offer))
         {
-            JLOG(j_.fatal()) << "Unable to delete token offer " << id
-                             << " (ledger " << view().seq() << ")";
+            JLOG(ctx.journal.fatal()) << "Unable to delete token offer " << id
+                             << " (ledger " << ctx.view().seq() << ")";
             return tefBAD_LEDGER;
         }
     }

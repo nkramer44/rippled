@@ -270,7 +270,7 @@ CreateOffer::dry_offer(ApplyView& view, Offer const& offer)
         offer.owner(),
         offer.amount().out,
         fhZERO_IF_FROZEN,
-        ctx_.app.journal("View"));
+        ctx.app.journal("View"));
     return (amount <= beast::zero);
 }
 
@@ -338,7 +338,7 @@ CreateOffer::bridged_cross(
         Book(taker.issue_in(), taker.issue_out()),
         when,
         stepCounter_,
-        j_);
+        ctx.journal);
 
     OfferStream offers_leg1(
         view,
@@ -346,7 +346,7 @@ CreateOffer::bridged_cross(
         Book(taker.issue_in(), xrpIssue()),
         when,
         stepCounter_,
-        j_);
+        ctx.journal);
 
     OfferStream offers_leg2(
         view,
@@ -354,7 +354,7 @@ CreateOffer::bridged_cross(
         Book(xrpIssue(), taker.issue_out()),
         when,
         stepCounter_,
-        j_);
+        ctx.journal);
 
     TER cross_result = tesSUCCESS;
 
@@ -365,7 +365,7 @@ CreateOffer::bridged_cross(
     bool have_direct = step_account(offers_direct, taker);
     int count = 0;
 
-    auto viewJ = ctx_.app.journal("View");
+    auto viewJ = ctx.app.journal("View");
 
     // Modifying the order or logic of the operations in the loop will cause
     // a protocol breaking change.
@@ -387,7 +387,7 @@ CreateOffer::bridged_cross(
 
         if (use_direct)
         {
-            if (auto stream = j_.debug())
+            if (auto stream = ctx.journal.debug())
             {
                 stream << count << " Direct:";
                 stream << "  offer: " << offers_direct.tip();
@@ -405,7 +405,7 @@ CreateOffer::bridged_cross(
 
             cross_result = taker.cross(offers_direct.tip());
 
-            JLOG(j_.debug()) << "Direct Result: " << transToken(cross_result);
+            JLOG(ctx.journal.debug()) << "Direct Result: " << transToken(cross_result);
 
             if (dry_offer(view, offers_direct.tip()))
             {
@@ -415,7 +415,7 @@ CreateOffer::bridged_cross(
         }
         else
         {
-            if (auto stream = j_.debug())
+            if (auto stream = ctx.journal.debug())
             {
                 auto const owner1_funds_before = accountFunds(
                     view,
@@ -446,7 +446,7 @@ CreateOffer::bridged_cross(
 
             cross_result = taker.cross(offers_leg1.tip(), offers_leg2.tip());
 
-            JLOG(j_.debug()) << "Bridge Result: " << transToken(cross_result);
+            JLOG(ctx.journal.debug()) << "Bridge Result: " << transToken(cross_result);
 
             if (view.rules().enabled(fixTakerDryOfferRemoval))
             {
@@ -485,13 +485,13 @@ CreateOffer::bridged_cross(
 
         if (taker.done())
         {
-            JLOG(j_.debug()) << "The taker reports he's done during crossing!";
+            JLOG(ctx.journal.debug()) << "The taker reports he's done during crossing!";
             break;
         }
 
         if (reachedOfferCrossingLimit(taker))
         {
-            JLOG(j_.debug()) << "The offer crossing limit has been exceeded!";
+            JLOG(ctx.journal.debug()) << "The offer crossing limit has been exceeded!";
             break;
         }
 
@@ -520,7 +520,7 @@ CreateOffer::direct_cross(
         Book(taker.issue_in(), taker.issue_out()),
         when,
         stepCounter_,
-        j_);
+        ctx.journal);
 
     TER cross_result(tesSUCCESS);
     int count = 0;
@@ -540,7 +540,7 @@ CreateOffer::direct_cross(
 
         count++;
 
-        if (auto stream = j_.debug())
+        if (auto stream = ctx.journal.debug())
         {
             stream << count << " Direct:";
             stream << "  offer: " << offer;
@@ -554,12 +554,12 @@ CreateOffer::direct_cross(
                           offer.owner(),
                           offer.amount().out,
                           fhIGNORE_FREEZE,
-                          ctx_.app.journal("View"));
+                          ctx.app.journal("View"));
         }
 
         cross_result = taker.cross(offer);
 
-        JLOG(j_.debug()) << "Direct Result: " << transToken(cross_result);
+        JLOG(ctx.journal.debug()) << "Direct Result: " << transToken(cross_result);
 
         if (dry_offer(view, offer))
         {
@@ -575,13 +575,13 @@ CreateOffer::direct_cross(
 
         if (taker.done())
         {
-            JLOG(j_.debug()) << "The taker reports he's done during crossing!";
+            JLOG(ctx.journal.debug()) << "The taker reports he's done during crossing!";
             break;
         }
 
         if (reachedOfferCrossingLimit(taker))
         {
-            JLOG(j_.debug()) << "The offer crossing limit has been exceeded!";
+            JLOG(ctx.journal.debug()) << "The offer crossing limit has been exceeded!";
             break;
         }
 
@@ -631,14 +631,14 @@ CreateOffer::takerCross(
 {
     NetClock::time_point const when = sb.parentCloseTime();
 
-    beast::WrappedSink takerSink(j_, "Taker ");
+    beast::WrappedSink takerSink(ctx.journal, "Taker ");
 
     Taker taker(
         cross_type_,
         sb,
-        account_,
+        ctx.tx.getAccountID(sfAccount),
         takerAmount,
-        ctx_.tx.getFlags(),
+        ctx.tx.getFlags(),
         beast::Journal(takerSink));
 
     // If the taker is unfunded before we begin crossing
@@ -650,7 +650,7 @@ CreateOffer::takerCross(
     // so we check this case again.
     if (taker.unfunded())
     {
-        JLOG(j_.debug()) << "Not crossing: taker is unfunded.";
+        JLOG(ctx.journal.debug()) << "Not crossing: taker is unfunded.";
         return {tecUNFUNDED_OFFER, takerAmount};
     }
 
@@ -663,7 +663,7 @@ CreateOffer::takerCross(
     }
     catch (std::exception const& e)
     {
-        JLOG(j_.error()) << "Exception during offer crossing: " << e.what();
+        JLOG(ctx.journal.error()) << "Exception during offer crossing: " << e.what();
         return {tecINTERNAL, taker.remaining_offer()};
     }
 }
@@ -683,11 +683,11 @@ CreateOffer::flowCross(
         // cause a user's available balance to go to 0 (by causing it to dip
         // below the reserve) so we check this case again.
         STAmount const inStartBalance =
-            accountFunds(psb, account_, takerAmount.in, fhZERO_IF_FROZEN, j_);
+            accountFunds(psb, ctx.tx.getAccountID(sfAccount), takerAmount.in, fhZERO_IF_FROZEN, ctx.journal);
         if (inStartBalance <= beast::zero)
         {
             // The account balance can't cover even part of the offer.
-            JLOG(j_.debug()) << "Not crossing: taker is unfunded.";
+            JLOG(ctx.journal.debug()) << "Not crossing: taker is unfunded.";
             return {tecUNFUNDED_OFFER, takerAmount};
         }
 
@@ -696,7 +696,7 @@ CreateOffer::flowCross(
         // offer taker.  Set sendMax to allow for the gateway's cut.
         Rate gatewayXferRate{QUALITY_ONE};
         STAmount sendMax = takerAmount.in;
-        if (!sendMax.native() && (account_ != sendMax.getIssuer()))
+        if (!sendMax.native() && (ctx.tx.getAccountID(sfAccount) != sendMax.getIssuer()))
         {
             gatewayXferRate = transferRate(psb, sendMax.getIssuer());
             if (gatewayXferRate.value != QUALITY_ONE)
@@ -715,7 +715,7 @@ CreateOffer::flowCross(
 
         // If we're creating a passive offer adjust the threshold so we only
         // cross offers that have a better quality than this one.
-        std::uint32_t const txFlags = ctx_.tx.getFlags();
+        std::uint32_t const txFlags = ctx.tx.getFlags();
         if (txFlags & tfPassive)
             ++threshold;
 
@@ -758,8 +758,8 @@ CreateOffer::flowCross(
         auto const result = flow(
             psb,
             deliver,
-            account_,
-            account_,
+            ctx.tx.getAccountID(sfAccount),
+            ctx.tx.getAccountID(sfAccount),
             paths,
             true,                       // default path
             !(txFlags & tfFillOrKill),  // partial payment
@@ -767,15 +767,15 @@ CreateOffer::flowCross(
             true,                       // offer crossing
             threshold,
             sendMax,
-            j_);
+            ctx.journal);
 
         // If stale offers were found remove them.
         for (auto const& toRemove : result.removableOffers)
         {
             if (auto otr = psb.peek(keylet::offer(toRemove)))
-                offerDelete(psb, otr, j_);
+                offerDelete(psb, otr, ctx.journal);
             if (auto otr = psbCancel.peek(keylet::offer(toRemove)))
-                offerDelete(psbCancel, otr, j_);
+                offerDelete(psbCancel, otr, ctx.journal);
         }
 
         // Determine the size of the final offer after crossing.
@@ -783,7 +783,7 @@ CreateOffer::flowCross(
         if (isTesSuccess(result.result()))
         {
             STAmount const takerInBalance = accountFunds(
-                psb, account_, takerAmount.in, fhZERO_IF_FROZEN, j_);
+                psb, ctx.tx.getAccountID(sfAccount), takerAmount.in, fhZERO_IF_FROZEN, ctx.journal);
 
             if (takerInBalance <= beast::zero)
             {
@@ -847,7 +847,7 @@ CreateOffer::flowCross(
     }
     catch (std::exception const& e)
     {
-        JLOG(j_.error()) << "Exception during offer crossing: " << e.what();
+        JLOG(ctx.journal.error()) << "Exception during offer crossing: " << e.what();
     }
     return {tecINTERNAL, takerAmount};
 }
@@ -886,8 +886,8 @@ void
 CreateOffer::preCompute()
 {
     cross_type_ = CrossType::IouToIou;
-    bool const pays_xrp = ctx_.tx.getFieldAmount(sfTakerPays).native();
-    bool const gets_xrp = ctx_.tx.getFieldAmount(sfTakerGets).native();
+    bool const pays_xrp = ctx.tx.getFieldAmount(sfTakerPays).native();
+    bool const gets_xrp = ctx.tx.getFieldAmount(sfTakerGets).native();
     if (pays_xrp && !gets_xrp)
         cross_type_ = CrossType::IouToXrp;
     else if (gets_xrp && !pays_xrp)
@@ -901,28 +901,28 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
 {
     using beast::zero;
 
-    std::uint32_t const uTxFlags = ctx_.tx.getFlags();
+    std::uint32_t const uTxFlags = ctx.tx.getFlags();
 
     bool const bPassive(uTxFlags & tfPassive);
     bool const bImmediateOrCancel(uTxFlags & tfImmediateOrCancel);
     bool const bFillOrKill(uTxFlags & tfFillOrKill);
     bool const bSell(uTxFlags & tfSell);
 
-    auto saTakerPays = ctx_.tx[sfTakerPays];
-    auto saTakerGets = ctx_.tx[sfTakerGets];
+    auto saTakerPays = ctx.tx[sfTakerPays];
+    auto saTakerGets = ctx.tx[sfTakerGets];
 
-    auto const cancelSequence = ctx_.tx[~sfOfferSequence];
+    auto const cancelSequence = ctx.tx[~sfOfferSequence];
 
     // Note that we we use the value from the sequence or ticket as the
     // offer sequence.  For more explanation see comments in SeqProxy.h.
-    auto const offerSequence = ctx_.tx.getSeqProxy().value();
+    auto const offerSequence = ctx.tx.getSeqProxy().value();
 
     // This is the original rate of the offer, and is the rate at which
     // it will be placed, even if crossing offers change the amounts that
     // end up on the books.
     auto uRate = getRate(saTakerGets, saTakerPays);
 
-    auto viewJ = ctx_.app.journal("View");
+    auto viewJ = ctx.app.journal("View");
 
     TER result = tesSUCCESS;
 
@@ -930,19 +930,19 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
     if (cancelSequence)
     {
         auto const sleCancel =
-            sb.peek(keylet::offer(account_, *cancelSequence));
+            sb.peek(keylet::offer(ctx.tx.getAccountID(sfAccount), *cancelSequence));
 
         // It's not an error to not find the offer to cancel: it might have
         // been consumed or removed. If it is found, however, it's an error
         // to fail to delete it.
         if (sleCancel)
         {
-            JLOG(j_.debug()) << "Create cancels order " << *cancelSequence;
+            JLOG(ctx.journal.debug()) << "Create cancels order " << *cancelSequence;
             result = offerDelete(sb, sleCancel, viewJ);
         }
     }
 
-    auto const expiration = ctx_.tx[~sfExpiration];
+    auto const expiration = ctx.tx[~sfExpiration];
 
     if (hasExpired(sb, expiration))
     {
@@ -999,7 +999,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
             }
             if (!saTakerGets || !saTakerPays)
             {
-                JLOG(j_.debug()) << "Offer rounded to zero";
+                JLOG(ctx.journal.debug()) << "Offer rounded to zero";
                 return {result, true};
             }
 
@@ -1014,11 +1014,11 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
         // empty (fully crossed), or something in-between.
         Amounts place_offer;
 
-        JLOG(j_.debug()) << "Attempting cross: "
+        JLOG(ctx.journal.debug()) << "Attempting cross: "
                          << to_string(takerAmount.in.issue()) << " -> "
                          << to_string(takerAmount.out.issue());
 
-        if (auto stream = j_.trace())
+        if (auto stream = ctx.journal.trace())
         {
             stream << "   mode: " << (bPassive ? "passive " : "")
                    << (bSell ? "sell" : "buy");
@@ -1032,7 +1032,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
         // or give a tec.
         assert(result == tesSUCCESS || isTecClaim(result));
 
-        if (auto stream = j_.trace())
+        if (auto stream = ctx.journal.trace())
         {
             stream << "Cross result: " << transToken(result);
             stream << "     in: " << format_amount(place_offer.in);
@@ -1044,7 +1044,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
 
         if (result != tesSUCCESS)
         {
-            JLOG(j_.debug()) << "final result: " << transToken(result);
+            JLOG(ctx.journal.debug()) << "final result: " << transToken(result);
             return {result, true};
         }
 
@@ -1058,7 +1058,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
         // never be negative. If it is, something went very very wrong.
         if (place_offer.in < zero || place_offer.out < zero)
         {
-            JLOG(j_.fatal()) << "Cross left offer negative!"
+            JLOG(ctx.journal.fatal()) << "Cross left offer negative!"
                              << "     in: " << format_amount(place_offer.in)
                              << "    out: " << format_amount(place_offer.out);
             return {tefINTERNAL, true};
@@ -1066,7 +1066,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
 
         if (place_offer.in == zero || place_offer.out == zero)
         {
-            JLOG(j_.debug()) << "Offer fully crossed!";
+            JLOG(ctx.journal.debug()) << "Offer fully crossed!";
             return {result, true};
         }
 
@@ -1081,11 +1081,11 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
 
     if (result != tesSUCCESS)
     {
-        JLOG(j_.debug()) << "final result: " << transToken(result);
+        JLOG(ctx.journal.debug()) << "final result: " << transToken(result);
         return {result, true};
     }
 
-    if (auto stream = j_.trace())
+    if (auto stream = ctx.journal.trace())
     {
         stream << "Place" << (crossed ? " remaining " : " ") << "offer:";
         stream << "    Pays: " << saTakerPays.getFullText();
@@ -1096,7 +1096,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
     // entire operation should be aborted, with only fees paid.
     if (bFillOrKill)
     {
-        JLOG(j_.trace()) << "Fill or Kill: offer killed";
+        JLOG(ctx.journal.trace()) << "Fill or Kill: offer killed";
         if (sb.rules().enabled(fix1578))
             return {tecKILLED, false};
         return {tesSUCCESS, false};
@@ -1106,7 +1106,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
     // placed - it gets canceled and the operation succeeds.
     if (bImmediateOrCancel)
     {
-        JLOG(j_.trace()) << "Immediate or cancel: offer canceled";
+        JLOG(ctx.journal.trace()) << "Immediate or cancel: offer canceled";
         if (!crossed && sb.rules().enabled(featureImmediateOfferKilled))
             // If the ImmediateOfferKilled amendment is enabled, any
             // ImmediateOrCancel offer that transfers absolutely no funds
@@ -1116,7 +1116,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
         return {tesSUCCESS, true};
     }
 
-    auto const sleCreator = sb.peek(keylet::account(account_));
+    auto const sleCreator = sb.peek(keylet::account(ctx.tx.getAccountID(sfAccount)));
     if (!sleCreator)
         return {tefINTERNAL, false};
 
@@ -1134,7 +1134,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
 
             if (result != tesSUCCESS)
             {
-                JLOG(j_.debug()) << "final result: " << transToken(result);
+                JLOG(ctx.journal.debug()) << "final result: " << transToken(result);
             }
 
             return {result, true};
@@ -1142,15 +1142,15 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
     }
 
     // We need to place the remainder of the offer into its order book.
-    auto const offer_index = keylet::offer(account_, offerSequence);
+    auto const offer_index = keylet::offer(ctx.tx.getAccountID(sfAccount), offerSequence);
 
     // Add offer to owner's directory.
     auto const ownerNode = sb.dirInsert(
-        keylet::ownerDir(account_), offer_index, describeOwnerDir(account_));
+        keylet::ownerDir(ctx.tx.getAccountID(sfAccount)), offer_index, describeOwnerDir(ctx.tx.getAccountID(sfAccount)));
 
     if (!ownerNode)
     {
-        JLOG(j_.debug())
+        JLOG(ctx.journal.debug())
             << "final result: failed to add offer to owner's directory";
         return {tecDIR_FULL, true};
     }
@@ -1158,7 +1158,7 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
     // Update owner count.
     adjustOwnerCount(sb, sleCreator, 1, viewJ);
 
-    JLOG(j_.trace()) << "adding to book: " << to_string(saTakerPays.issue())
+    JLOG(ctx.journal.trace()) << "adding to book: " << to_string(saTakerPays.issue())
                      << " : " << to_string(saTakerGets.issue());
 
     Book const book{saTakerPays.issue(), saTakerGets.issue()};
@@ -1178,12 +1178,12 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
 
     if (!bookNode)
     {
-        JLOG(j_.debug()) << "final result: failed to add offer to book";
+        JLOG(ctx.journal.debug()) << "final result: failed to add offer to book";
         return {tecDIR_FULL, true};
     }
 
     auto sleOffer = std::make_shared<SLE>(offer_index);
-    sleOffer->setAccountID(sfAccount, account_);
+    sleOffer->setAccountID(sfAccount, ctx.tx.getAccountID(sfAccount));
     sleOffer->setFieldU32(sfSequence, offerSequence);
     sleOffer->setFieldH256(sfBookDirectory, dir.key);
     sleOffer->setFieldAmount(sfTakerPays, saTakerPays);
@@ -1199,9 +1199,9 @@ CreateOffer::applyGuts(Sandbox& sb, Sandbox& sbCancel)
     sb.insert(sleOffer);
 
     if (!bookExisted)
-        ctx_.app.getOrderBookDB().addOrderBook(book);
+        ctx.app.getOrderBookDB().addOrderBook(book);
 
-    JLOG(j_.debug()) << "final result: success";
+    JLOG(ctx.journal.debug()) << "final result: success";
 
     return {tesSUCCESS, true};
 }
@@ -1211,18 +1211,18 @@ CreateOffer::doApply()
 {
     // This is the ledger view that we work against. Transactions are applied
     // as we go on processing transactions.
-    Sandbox sb(&ctx_.view());
+    Sandbox sb(&ctx.view());
 
     // This is a ledger with just the fees paid and any unfunded or expired
     // offers we encounter removed. It's used when handling Fill-or-Kill offers,
     // if the order isn't going to be placed, to avoid wasting the work we did.
-    Sandbox sbCancel(&ctx_.view());
+    Sandbox sbCancel(&ctx.view());
 
     auto const result = applyGuts(sb, sbCancel);
     if (result.second)
-        sb.apply(ctx_.rawView());
+        sb.apply(ctx.rawView());
     else
-        sbCancel.apply(ctx_.rawView());
+        sbCancel.apply(ctx.rawView());
     return result.first;
 }
 

@@ -140,7 +140,7 @@ Change::preclaim(PreclaimContext const& ctx)
 TER
 Change::doApply()
 {
-    switch (ctx_.tx.getTxnType())
+    switch (ctx.tx.getTxnType())
     {
         case ttAMENDMENT:
             return applyAmendment();
@@ -157,26 +157,26 @@ Change::doApply()
 void
 Change::preCompute()
 {
-    assert(account_ == beast::zero);
+    assert(ctx.tx.getAccountID(sfAccount) == beast::zero);
 }
 
 void
 Change::activateTrustLinesToSelfFix()
 {
-    JLOG(j_.warn()) << "fixTrustLinesToSelf amendment activation code starting";
+    JLOG(ctx.journal.warn()) << "fixTrustLinesToSelf amendment activation code starting";
 
     auto removeTrustLineToSelf = [this](Sandbox& sb, uint256 id) {
         auto tl = sb.peek(keylet::child(id));
 
         if (tl == nullptr)
         {
-            JLOG(j_.warn()) << id << ": Unable to locate trustline";
+            JLOG(ctx.journal.warn()) << id << ": Unable to locate trustline";
             return true;
         }
 
         if (tl->getType() != ltRIPPLE_STATE)
         {
-            JLOG(j_.warn()) << id << ": Unexpected type "
+            JLOG(ctx.journal.warn()) << id << ": Unexpected type "
                             << static_cast<std::uint16_t>(tl->getType());
             return true;
         }
@@ -186,14 +186,14 @@ Change::activateTrustLinesToSelfFix()
 
         if (lo != hi)
         {
-            JLOG(j_.warn()) << id << ": Trustline doesn't meet requirements";
+            JLOG(ctx.journal.warn()) << id << ": Trustline doesn't meet requirements";
             return true;
         }
 
         if (auto const page = tl->getFieldU64(sfLowNode); !sb.dirRemove(
                 keylet::ownerDir(lo.getIssuer()), page, tl->key(), false))
         {
-            JLOG(j_.error()) << id << ": failed to remove low entry from "
+            JLOG(ctx.journal.error()) << id << ": failed to remove low entry from "
                              << toBase58(lo.getIssuer()) << ":" << page
                              << " owner directory";
             return false;
@@ -202,7 +202,7 @@ Change::activateTrustLinesToSelfFix()
         if (auto const page = tl->getFieldU64(sfHighNode); !sb.dirRemove(
                 keylet::ownerDir(hi.getIssuer()), page, tl->key(), false))
         {
-            JLOG(j_.error()) << id << ": failed to remove high entry from "
+            JLOG(ctx.journal.error()) << id << ": failed to remove high entry from "
                              << toBase58(hi.getIssuer()) << ":" << page
                              << " owner directory";
             return false;
@@ -210,22 +210,22 @@ Change::activateTrustLinesToSelfFix()
 
         if (tl->getFlags() & lsfLowReserve)
             adjustOwnerCount(
-                sb, sb.peek(keylet::account(lo.getIssuer())), -1, j_);
+                sb, sb.peek(keylet::account(lo.getIssuer())), -1, ctx.journal);
 
         if (tl->getFlags() & lsfHighReserve)
             adjustOwnerCount(
-                sb, sb.peek(keylet::account(hi.getIssuer())), -1, j_);
+                sb, sb.peek(keylet::account(hi.getIssuer())), -1, ctx.journal);
 
         sb.erase(tl);
 
-        JLOG(j_.warn()) << "Successfully deleted trustline " << id;
+        JLOG(ctx.journal.warn()) << "Successfully deleted trustline " << id;
 
         return true;
     };
 
     using namespace std::literals;
 
-    Sandbox sb(&view());
+    Sandbox sb(&ctx.view());
 
     if (removeTrustLineToSelf(
             sb,
@@ -236,25 +236,25 @@ Change::activateTrustLinesToSelfFix()
             uint256{
                 "326035D5C0560A9DA8636545DD5A1B0DFCFF63E68D491B5522B767BB00564B1A"sv}))
     {
-        JLOG(j_.warn()) << "fixTrustLinesToSelf amendment activation code "
+        JLOG(ctx.journal.warn()) << "fixTrustLinesToSelf amendment activation code "
                            "executed successfully";
-        sb.apply(ctx_.rawView());
+        sb.apply(ctx.rawView());
     }
 }
 
 TER
 Change::applyAmendment()
 {
-    uint256 amendment(ctx_.tx.getFieldH256(sfAmendment));
+    uint256 amendment(ctx.tx.getFieldH256(sfAmendment));
 
     auto const k = keylet::amendments();
 
-    SLE::pointer amendmentObject = view().peek(k);
+    SLE::pointer amendmentObject = ctx.view().peek(k);
 
     if (!amendmentObject)
     {
         amendmentObject = std::make_shared<SLE>(k);
-        view().insert(amendmentObject);
+        ctx.view().insert(amendmentObject);
     }
 
     STVector256 amendments = amendmentObject->getFieldV256(sfAmendments);
@@ -263,7 +263,7 @@ Change::applyAmendment()
         amendments.end())
         return tefALREADY;
 
-    auto flags = ctx_.tx.getFlags();
+    auto flags = ctx.tx.getFlags();
 
     const bool gotMajority = (flags & tfGotMajority) != 0;
     const bool lostMajority = (flags & tfLostMajority) != 0;
@@ -304,11 +304,11 @@ Change::applyAmendment()
         auto& entry = newMajorities.back();
         entry.emplace_back(STUInt256(sfAmendment, amendment));
         entry.emplace_back(STUInt32(
-            sfCloseTime, view().parentCloseTime().time_since_epoch().count()));
+            sfCloseTime, ctx.view().parentCloseTime().time_since_epoch().count()));
 
-        if (!ctx_.app.getAmendmentTable().isSupported(amendment))
+        if (!ctx.app.getAmendmentTable().isSupported(amendment))
         {
-            JLOG(j_.warn()) << "Unsupported amendment " << amendment
+            JLOG(ctx.journal.warn()) << "Unsupported amendment " << amendment
                             << " received a majority.";
         }
     }
@@ -321,13 +321,13 @@ Change::applyAmendment()
         if (amendment == fixTrustLinesToSelf)
             activateTrustLinesToSelfFix();
 
-        ctx_.app.getAmendmentTable().enable(amendment);
+        ctx.app.getAmendmentTable().enable(amendment);
 
-        if (!ctx_.app.getAmendmentTable().isSupported(amendment))
+        if (!ctx.app.getAmendmentTable().isSupported(amendment))
         {
-            JLOG(j_.error()) << "Unsupported amendment " << amendment
+            JLOG(ctx.journal.error()) << "Unsupported amendment " << amendment
                              << " activated: server blocked.";
-            ctx_.app.getOPs().setAmendmentBlocked();
+            ctx.app.getOPs().setAmendmentBlocked();
         }
     }
 
@@ -336,7 +336,7 @@ Change::applyAmendment()
     else
         amendmentObject->setFieldArray(sfMajorities, newMajorities);
 
-    view().update(amendmentObject);
+    ctx.view().update(amendmentObject);
 
     return tesSUCCESS;
 }
@@ -346,21 +346,21 @@ Change::applyFee()
 {
     auto const k = keylet::fees();
 
-    SLE::pointer feeObject = view().peek(k);
+    SLE::pointer feeObject = ctx.view().peek(k);
 
     if (!feeObject)
     {
         feeObject = std::make_shared<SLE>(k);
-        view().insert(feeObject);
+        ctx.view().insert(feeObject);
     }
     auto set = [](SLE::pointer& feeObject, STTx const& tx, auto const& field) {
         feeObject->at(field) = tx[field];
     };
-    if (view().rules().enabled(featureXRPFees))
+    if (ctx.view().rules().enabled(featureXRPFees))
     {
-        set(feeObject, ctx_.tx, sfBaseFeeDrops);
-        set(feeObject, ctx_.tx, sfReserveBaseDrops);
-        set(feeObject, ctx_.tx, sfReserveIncrementDrops);
+        set(feeObject, ctx.tx, sfBaseFeeDrops);
+        set(feeObject, ctx.tx, sfReserveBaseDrops);
+        set(feeObject, ctx.tx, sfReserveIncrementDrops);
         // Ensure the old fields are removed
         feeObject->makeFieldAbsent(sfBaseFee);
         feeObject->makeFieldAbsent(sfReferenceFeeUnits);
@@ -369,63 +369,63 @@ Change::applyFee()
     }
     else
     {
-        set(feeObject, ctx_.tx, sfBaseFee);
-        set(feeObject, ctx_.tx, sfReferenceFeeUnits);
-        set(feeObject, ctx_.tx, sfReserveBase);
-        set(feeObject, ctx_.tx, sfReserveIncrement);
+        set(feeObject, ctx.tx, sfBaseFee);
+        set(feeObject, ctx.tx, sfReferenceFeeUnits);
+        set(feeObject, ctx.tx, sfReserveBase);
+        set(feeObject, ctx.tx, sfReserveIncrement);
     }
 
-    view().update(feeObject);
+    ctx.view().update(feeObject);
 
-    JLOG(j_.warn()) << "Fees have been changed";
+    JLOG(ctx.journal.warn()) << "Fees have been changed";
     return tesSUCCESS;
 }
 
 TER
 Change::applyUNLModify()
 {
-    if (!isFlagLedger(view().seq()))
+    if (!isFlagLedger(ctx.view().seq()))
     {
-        JLOG(j_.warn()) << "N-UNL: applyUNLModify, not a flag ledger, seq="
-                        << view().seq();
+        JLOG(ctx.journal.warn()) << "N-UNL: applyUNLModify, not a flag ledger, seq="
+                        << ctx.view().seq();
         return tefFAILURE;
     }
 
-    if (!ctx_.tx.isFieldPresent(sfUNLModifyDisabling) ||
-        ctx_.tx.getFieldU8(sfUNLModifyDisabling) > 1 ||
-        !ctx_.tx.isFieldPresent(sfLedgerSequence) ||
-        !ctx_.tx.isFieldPresent(sfUNLModifyValidator))
+    if (!ctx.tx.isFieldPresent(sfUNLModifyDisabling) ||
+        ctx.tx.getFieldU8(sfUNLModifyDisabling) > 1 ||
+        !ctx.tx.isFieldPresent(sfLedgerSequence) ||
+        !ctx.tx.isFieldPresent(sfUNLModifyValidator))
     {
-        JLOG(j_.warn()) << "N-UNL: applyUNLModify, wrong Tx format.";
+        JLOG(ctx.journal.warn()) << "N-UNL: applyUNLModify, wrong Tx format.";
         return tefFAILURE;
     }
 
-    bool const disabling = ctx_.tx.getFieldU8(sfUNLModifyDisabling);
-    auto const seq = ctx_.tx.getFieldU32(sfLedgerSequence);
-    if (seq != view().seq())
+    bool const disabling = ctx.tx.getFieldU8(sfUNLModifyDisabling);
+    auto const seq = ctx.tx.getFieldU32(sfLedgerSequence);
+    if (seq != ctx.view().seq())
     {
-        JLOG(j_.warn()) << "N-UNL: applyUNLModify, wrong ledger seq=" << seq;
+        JLOG(ctx.journal.warn()) << "N-UNL: applyUNLModify, wrong ledger seq=" << seq;
         return tefFAILURE;
     }
 
-    Blob const validator = ctx_.tx.getFieldVL(sfUNLModifyValidator);
+    Blob const validator = ctx.tx.getFieldVL(sfUNLModifyValidator);
     if (!publicKeyType(makeSlice(validator)))
     {
-        JLOG(j_.warn()) << "N-UNL: applyUNLModify, bad validator key";
+        JLOG(ctx.journal.warn()) << "N-UNL: applyUNLModify, bad validator key";
         return tefFAILURE;
     }
 
-    JLOG(j_.info()) << "N-UNL: applyUNLModify, "
+    JLOG(ctx.journal.info()) << "N-UNL: applyUNLModify, "
                     << (disabling ? "ToDisable" : "ToReEnable")
                     << " seq=" << seq
                     << " validator data:" << strHex(validator);
 
     auto const k = keylet::negativeUNL();
-    SLE::pointer negUnlObject = view().peek(k);
+    SLE::pointer negUnlObject = ctx.view().peek(k);
     if (!negUnlObject)
     {
         negUnlObject = std::make_shared<SLE>(k);
-        view().insert(negUnlObject);
+        ctx.view().insert(negUnlObject);
     }
 
     bool const found = [&] {
@@ -448,7 +448,7 @@ Change::applyUNLModify()
         // cannot have more than one toDisable
         if (negUnlObject->isFieldPresent(sfValidatorToDisable))
         {
-            JLOG(j_.warn()) << "N-UNL: applyUNLModify, already has ToDisable";
+            JLOG(ctx.journal.warn()) << "N-UNL: applyUNLModify, already has ToDisable";
             return tefFAILURE;
         }
 
@@ -457,7 +457,7 @@ Change::applyUNLModify()
         {
             if (negUnlObject->getFieldVL(sfValidatorToReEnable) == validator)
             {
-                JLOG(j_.warn())
+                JLOG(ctx.journal.warn())
                     << "N-UNL: applyUNLModify, ToDisable is same as ToReEnable";
                 return tefFAILURE;
             }
@@ -466,7 +466,7 @@ Change::applyUNLModify()
         // cannot be in negative UNL already
         if (found)
         {
-            JLOG(j_.warn())
+            JLOG(ctx.journal.warn())
                 << "N-UNL: applyUNLModify, ToDisable already in negative UNL";
             return tefFAILURE;
         }
@@ -478,7 +478,7 @@ Change::applyUNLModify()
         // cannot have more than one toReEnable
         if (negUnlObject->isFieldPresent(sfValidatorToReEnable))
         {
-            JLOG(j_.warn()) << "N-UNL: applyUNLModify, already has ToReEnable";
+            JLOG(ctx.journal.warn()) << "N-UNL: applyUNLModify, already has ToReEnable";
             return tefFAILURE;
         }
 
@@ -487,7 +487,7 @@ Change::applyUNLModify()
         {
             if (negUnlObject->getFieldVL(sfValidatorToDisable) == validator)
             {
-                JLOG(j_.warn())
+                JLOG(ctx.journal.warn())
                     << "N-UNL: applyUNLModify, ToReEnable is same as ToDisable";
                 return tefFAILURE;
             }
@@ -496,7 +496,7 @@ Change::applyUNLModify()
         // must be in negative UNL
         if (!found)
         {
-            JLOG(j_.warn())
+            JLOG(ctx.journal.warn())
                 << "N-UNL: applyUNLModify, ToReEnable is not in negative UNL";
             return tefFAILURE;
         }
@@ -504,7 +504,7 @@ Change::applyUNLModify()
         negUnlObject->setFieldVL(sfValidatorToReEnable, validator);
     }
 
-    view().update(negUnlObject);
+    ctx.view().update(negUnlObject);
     return tesSUCCESS;
 }
 

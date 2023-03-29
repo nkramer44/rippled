@@ -224,14 +224,15 @@ SetAccount::preclaim(PreclaimContext const& ctx)
 TER
 SetAccount::doApply()
 {
-    auto const sle = view().peek(keylet::account(account_));
+    AccountID const account_ = ctx.tx.getAccountID(sfAccount);
+    auto const sle = ctx.view().peek(keylet::account(account_));
     if (!sle)
         return tefINTERNAL;
 
     std::uint32_t const uFlagsIn = sle->getFieldU32(sfFlags);
     std::uint32_t uFlagsOut = uFlagsIn;
 
-    STTx const& tx{ctx_.tx};
+    STTx const& tx{ctx.tx};
     std::uint32_t const uSetFlag{tx.getFieldU32(sfSetFlag)};
     std::uint32_t const uClearFlag{tx.getFieldU32(sfClearFlag)};
 
@@ -268,13 +269,13 @@ SetAccount::doApply()
     //
     if (bSetRequireAuth && !(uFlagsIn & lsfRequireAuth))
     {
-        JLOG(j_.trace()) << "Set RequireAuth.";
+        JLOG(ctx.journal.trace()) << "Set RequireAuth.";
         uFlagsOut |= lsfRequireAuth;
     }
 
     if (bClearRequireAuth && (uFlagsIn & lsfRequireAuth))
     {
-        JLOG(j_.trace()) << "Clear RequireAuth.";
+        JLOG(ctx.journal.trace()) << "Clear RequireAuth.";
         uFlagsOut &= ~lsfRequireAuth;
     }
 
@@ -283,13 +284,13 @@ SetAccount::doApply()
     //
     if (bSetRequireDest && !(uFlagsIn & lsfRequireDestTag))
     {
-        JLOG(j_.trace()) << "Set lsfRequireDestTag.";
+        JLOG(ctx.journal.trace()) << "Set lsfRequireDestTag.";
         uFlagsOut |= lsfRequireDestTag;
     }
 
     if (bClearRequireDest && (uFlagsIn & lsfRequireDestTag))
     {
-        JLOG(j_.trace()) << "Clear lsfRequireDestTag.";
+        JLOG(ctx.journal.trace()) << "Clear lsfRequireDestTag.";
         uFlagsOut &= ~lsfRequireDestTag;
     }
 
@@ -298,13 +299,13 @@ SetAccount::doApply()
     //
     if (bSetDisallowXRP && !(uFlagsIn & lsfDisallowXRP))
     {
-        JLOG(j_.trace()) << "Set lsfDisallowXRP.";
+        JLOG(ctx.journal.trace()) << "Set lsfDisallowXRP.";
         uFlagsOut |= lsfDisallowXRP;
     }
 
     if (bClearDisallowXRP && (uFlagsIn & lsfDisallowXRP))
     {
-        JLOG(j_.trace()) << "Clear lsfDisallowXRP.";
+        JLOG(ctx.journal.trace()) << "Clear lsfDisallowXRP.";
         uFlagsOut &= ~lsfDisallowXRP;
     }
 
@@ -315,24 +316,24 @@ SetAccount::doApply()
     {
         if (!sigWithMaster)
         {
-            JLOG(j_.trace()) << "Must use master key to disable master key.";
+            JLOG(ctx.journal.trace()) << "Must use master key to disable master key.";
             return tecNEED_MASTER_KEY;
         }
 
         if ((!sle->isFieldPresent(sfRegularKey)) &&
-            (!view().peek(keylet::signers(account_))))
+            (!ctx.view().peek(keylet::signers(ctx.tx.getAccountID(sfAccount)))))
         {
             // Account has no regular key or multi-signer signer list.
             return tecNO_ALTERNATIVE_KEY;
         }
 
-        JLOG(j_.trace()) << "Set lsfDisableMaster.";
+        JLOG(ctx.journal.trace()) << "Set lsfDisableMaster.";
         uFlagsOut |= lsfDisableMaster;
     }
 
     if ((uClearFlag == asfDisableMaster) && (uFlagsIn & lsfDisableMaster))
     {
-        JLOG(j_.trace()) << "Clear lsfDisableMaster.";
+        JLOG(ctx.journal.trace()) << "Clear lsfDisableMaster.";
         uFlagsOut &= ~lsfDisableMaster;
     }
 
@@ -341,12 +342,12 @@ SetAccount::doApply()
     //
     if (uSetFlag == asfDefaultRipple)
     {
-        JLOG(j_.trace()) << "Set lsfDefaultRipple.";
+        JLOG(ctx.journal.trace()) << "Set lsfDefaultRipple.";
         uFlagsOut |= lsfDefaultRipple;
     }
     else if (uClearFlag == asfDefaultRipple)
     {
-        JLOG(j_.trace()) << "Clear lsfDefaultRipple.";
+        JLOG(ctx.journal.trace()) << "Clear lsfDefaultRipple.";
         uFlagsOut &= ~lsfDefaultRipple;
     }
 
@@ -357,18 +358,18 @@ SetAccount::doApply()
     {
         if (!sigWithMaster && !(uFlagsIn & lsfDisableMaster))
         {
-            JLOG(j_.trace()) << "Must use master key to set NoFreeze.";
+            JLOG(ctx.journal.trace()) << "Must use master key to set NoFreeze.";
             return tecNEED_MASTER_KEY;
         }
 
-        JLOG(j_.trace()) << "Set NoFreeze flag";
+        JLOG(ctx.journal.trace()) << "Set NoFreeze flag";
         uFlagsOut |= lsfNoFreeze;
     }
 
     // Anyone may set global freeze
     if (uSetFlag == asfGlobalFreeze)
     {
-        JLOG(j_.trace()) << "Set GlobalFreeze flag";
+        JLOG(ctx.journal.trace()) << "Set GlobalFreeze flag";
         uFlagsOut |= lsfGlobalFreeze;
     }
 
@@ -378,7 +379,7 @@ SetAccount::doApply()
     if ((uSetFlag != asfGlobalFreeze) && (uClearFlag == asfGlobalFreeze) &&
         ((uFlagsOut & lsfNoFreeze) == 0))
     {
-        JLOG(j_.trace()) << "Clear GlobalFreeze flag";
+        JLOG(ctx.journal.trace()) << "Clear GlobalFreeze flag";
         uFlagsOut &= ~lsfGlobalFreeze;
     }
 
@@ -387,29 +388,29 @@ SetAccount::doApply()
     //
     if ((uSetFlag == asfAccountTxnID) && !sle->isFieldPresent(sfAccountTxnID))
     {
-        JLOG(j_.trace()) << "Set AccountTxnID.";
+        JLOG(ctx.journal.trace()) << "Set AccountTxnID.";
         sle->makeFieldPresent(sfAccountTxnID);
     }
 
     if ((uClearFlag == asfAccountTxnID) && sle->isFieldPresent(sfAccountTxnID))
     {
-        JLOG(j_.trace()) << "Clear AccountTxnID.";
+        JLOG(ctx.journal.trace()) << "Clear AccountTxnID.";
         sle->makeFieldAbsent(sfAccountTxnID);
     }
 
     //
     // DepositAuth
     //
-    if (view().rules().enabled(featureDepositAuth))
+    if (ctx.view().rules().enabled(featureDepositAuth))
     {
         if (uSetFlag == asfDepositAuth)
         {
-            JLOG(j_.trace()) << "Set lsfDepositAuth.";
+            JLOG(ctx.journal.trace()) << "Set lsfDepositAuth.";
             uFlagsOut |= lsfDepositAuth;
         }
         else if (uClearFlag == asfDepositAuth)
         {
-            JLOG(j_.trace()) << "Clear lsfDepositAuth.";
+            JLOG(ctx.journal.trace()) << "Clear lsfDepositAuth.";
             uFlagsOut &= ~lsfDepositAuth;
         }
     }
@@ -423,12 +424,12 @@ SetAccount::doApply()
 
         if (!uHash)
         {
-            JLOG(j_.trace()) << "unset email hash";
+            JLOG(ctx.journal.trace()) << "unset email hash";
             sle->makeFieldAbsent(sfEmailHash);
         }
         else
         {
-            JLOG(j_.trace()) << "set email hash";
+            JLOG(ctx.journal.trace()) << "set email hash";
             sle->setFieldH128(sfEmailHash, uHash);
         }
     }
@@ -442,12 +443,12 @@ SetAccount::doApply()
 
         if (!uHash)
         {
-            JLOG(j_.trace()) << "unset wallet locator";
+            JLOG(ctx.journal.trace()) << "unset wallet locator";
             sle->makeFieldAbsent(sfWalletLocator);
         }
         else
         {
-            JLOG(j_.trace()) << "set wallet locator";
+            JLOG(ctx.journal.trace()) << "set wallet locator";
             sle->setFieldH256(sfWalletLocator, uHash);
         }
     }
@@ -461,12 +462,12 @@ SetAccount::doApply()
 
         if (messageKey.empty())
         {
-            JLOG(j_.debug()) << "set message key";
+            JLOG(ctx.journal.debug()) << "set message key";
             sle->makeFieldAbsent(sfMessageKey);
         }
         else
         {
-            JLOG(j_.debug()) << "set message key";
+            JLOG(ctx.journal.debug()) << "set message key";
             sle->setFieldVL(sfMessageKey, messageKey);
         }
     }
@@ -480,12 +481,12 @@ SetAccount::doApply()
 
         if (domain.empty())
         {
-            JLOG(j_.trace()) << "unset domain";
+            JLOG(ctx.journal.trace()) << "unset domain";
             sle->makeFieldAbsent(sfDomain);
         }
         else
         {
-            JLOG(j_.trace()) << "set domain";
+            JLOG(ctx.journal.trace()) << "set domain";
             sle->setFieldVL(sfDomain, domain);
         }
     }
@@ -499,12 +500,12 @@ SetAccount::doApply()
 
         if (uRate == 0 || uRate == QUALITY_ONE)
         {
-            JLOG(j_.trace()) << "unset transfer rate";
+            JLOG(ctx.journal.trace()) << "unset transfer rate";
             sle->makeFieldAbsent(sfTransferRate);
         }
         else
         {
-            JLOG(j_.trace()) << "set transfer rate";
+            JLOG(ctx.journal.trace()) << "set transfer rate";
             sle->setFieldU32(sfTransferRate, uRate);
         }
     }
@@ -517,21 +518,21 @@ SetAccount::doApply()
         auto uTickSize = tx[sfTickSize];
         if ((uTickSize == 0) || (uTickSize == Quality::maxTickSize))
         {
-            JLOG(j_.trace()) << "unset tick size";
+            JLOG(ctx.journal.trace()) << "unset tick size";
             sle->makeFieldAbsent(sfTickSize);
         }
         else
         {
-            JLOG(j_.trace()) << "set tick size";
+            JLOG(ctx.journal.trace()) << "set tick size";
             sle->setFieldU8(sfTickSize, uTickSize);
         }
     }
 
     // Configure authorized minting account:
-    if (ctx_.view().rules().enabled(featureNonFungibleTokensV1))
+    if (ctx.view().rules().enabled(featureNonFungibleTokensV1))
     {
         if (uSetFlag == asfAuthorizedNFTokenMinter)
-            sle->setAccountID(sfNFTokenMinter, ctx_.tx[sfNFTokenMinter]);
+            sle->setAccountID(sfNFTokenMinter, ctx.tx[sfNFTokenMinter]);
 
         if (uClearFlag == asfAuthorizedNFTokenMinter &&
             sle->isFieldPresent(sfNFTokenMinter))
@@ -539,7 +540,7 @@ SetAccount::doApply()
     }
 
     // Set or clear flags for disallowing various incoming instruments
-    if (ctx_.view().rules().enabled(featureDisallowIncoming))
+    if (ctx.view().rules().enabled(featureDisallowIncoming))
     {
         if (uSetFlag == asfDisallowIncomingNFTokenOffer)
             uFlagsOut |= lsfDisallowIncomingNFTokenOffer;

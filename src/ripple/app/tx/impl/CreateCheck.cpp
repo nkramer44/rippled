@@ -163,7 +163,7 @@ CreateCheck::preclaim(PreclaimContext const& ctx)
 TER
 CreateCheck::doApply()
 {
-    auto const sle = view().peek(keylet::account(account_));
+    auto const sle = ctx.view().peek(keylet::account(ctx.tx.getAccountID(sfAccount)));
     if (!sle)
         return tefINTERNAL;
 
@@ -172,7 +172,7 @@ CreateCheck::doApply()
     // reserve to pay fees.
     {
         STAmount const reserve{
-            view().fees().accountReserve(sle->getFieldU32(sfOwnerCount) + 1)};
+            ctx.view().fees().accountReserve(sle->getFieldU32(sfOwnerCount) + 1)};
 
         if (mPriorBalance < reserve)
             return tecINSUFFICIENT_RESERVE;
@@ -180,37 +180,37 @@ CreateCheck::doApply()
 
     // Note that we use the value from the sequence or ticket as the
     // Check sequence.  For more explanation see comments in SeqProxy.h.
-    std::uint32_t const seq = ctx_.tx.getSeqProxy().value();
-    Keylet const checkKeylet = keylet::check(account_, seq);
+    std::uint32_t const seq = ctx.tx.getSeqProxy().value();
+    Keylet const checkKeylet = keylet::check(ctx.tx.getAccountID(sfAccount), seq);
     auto sleCheck = std::make_shared<SLE>(checkKeylet);
 
-    sleCheck->setAccountID(sfAccount, account_);
-    AccountID const dstAccountId = ctx_.tx[sfDestination];
+    sleCheck->setAccountID(sfAccount, ctx.tx.getAccountID(sfAccount));
+    AccountID const dstAccountId = ctx.tx[sfDestination];
     sleCheck->setAccountID(sfDestination, dstAccountId);
     sleCheck->setFieldU32(sfSequence, seq);
-    sleCheck->setFieldAmount(sfSendMax, ctx_.tx[sfSendMax]);
-    if (auto const srcTag = ctx_.tx[~sfSourceTag])
+    sleCheck->setFieldAmount(sfSendMax, ctx.tx[sfSendMax]);
+    if (auto const srcTag = ctx.tx[~sfSourceTag])
         sleCheck->setFieldU32(sfSourceTag, *srcTag);
-    if (auto const dstTag = ctx_.tx[~sfDestinationTag])
+    if (auto const dstTag = ctx.tx[~sfDestinationTag])
         sleCheck->setFieldU32(sfDestinationTag, *dstTag);
-    if (auto const invoiceId = ctx_.tx[~sfInvoiceID])
+    if (auto const invoiceId = ctx.tx[~sfInvoiceID])
         sleCheck->setFieldH256(sfInvoiceID, *invoiceId);
-    if (auto const expiry = ctx_.tx[~sfExpiration])
+    if (auto const expiry = ctx.tx[~sfExpiration])
         sleCheck->setFieldU32(sfExpiration, *expiry);
 
-    view().insert(sleCheck);
+    ctx.view().insert(sleCheck);
 
-    auto viewJ = ctx_.app.journal("View");
+    auto viewJ = ctx.app.journal("View");
     // If it's not a self-send (and it shouldn't be), add Check to the
     // destination's owner directory.
-    if (dstAccountId != account_)
+    if (dstAccountId != ctx.tx.getAccountID(sfAccount))
     {
-        auto const page = view().dirInsert(
+        auto const page = ctx.view().dirInsert(
             keylet::ownerDir(dstAccountId),
             checkKeylet,
             describeOwnerDir(dstAccountId));
 
-        JLOG(j_.trace()) << "Adding Check to destination directory "
+        JLOG(ctx.journal.trace()) << "Adding Check to destination directory "
                          << to_string(checkKeylet.key) << ": "
                          << (page ? "success" : "failure");
 
@@ -221,12 +221,12 @@ CreateCheck::doApply()
     }
 
     {
-        auto const page = view().dirInsert(
-            keylet::ownerDir(account_),
+        auto const page = ctx.view().dirInsert(
+            keylet::ownerDir(ctx.tx.getAccountID(sfAccount)),
             checkKeylet,
-            describeOwnerDir(account_));
+            describeOwnerDir(ctx.tx.getAccountID(sfAccount)));
 
-        JLOG(j_.trace()) << "Adding Check to owner directory "
+        JLOG(ctx.journal.trace()) << "Adding Check to owner directory "
                          << to_string(checkKeylet.key) << ": "
                          << (page ? "success" : "failure");
 
@@ -236,7 +236,7 @@ CreateCheck::doApply()
         sleCheck->setFieldU64(sfOwnerNode, *page);
     }
     // If we succeeded, the new entry counts against the creator's reserve.
-    adjustOwnerCount(view(), sle, 1, viewJ);
+    adjustOwnerCount(ctx.view(), sle, 1, viewJ);
     return tesSUCCESS;
 }
 

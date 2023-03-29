@@ -75,22 +75,22 @@ SetRegularKey::preflight(PreflightContext const& ctx)
 TER
 SetRegularKey::doApply()
 {
-    auto const sle = view().peek(keylet::account(account_));
+    auto const sle = ctx.view().peek(keylet::account(ctx.tx.getAccountID(sfAccount)));
     if (!sle)
         return tefINTERNAL;
 
-    if (!minimumFee(ctx_.app, ctx_.baseFee, view().fees(), view().flags()))
+    if (!minimumFee(ctx.app, ctx.baseFee, ctx.view().fees(), ctx.view().flags()))
         sle->setFlag(lsfPasswordSpent);
 
-    if (ctx_.tx.isFieldPresent(sfRegularKey))
+    if (ctx.tx.isFieldPresent(sfRegularKey))
     {
-        sle->setAccountID(sfRegularKey, ctx_.tx.getAccountID(sfRegularKey));
+        sle->setAccountID(sfRegularKey, ctx.tx.getAccountID(sfRegularKey));
     }
     else
     {
         // Account has disabled master key and no multi-signer signer list.
         if (sle->isFlag(lsfDisableMaster) &&
-            !view().peek(keylet::signers(account_)))
+            !ctx.view().peek(keylet::signers(ctx.tx.getAccountID(sfAccount))))
             return tecNO_ALTERNATIVE_KEY;
 
         sle->makeFieldAbsent(sfRegularKey);

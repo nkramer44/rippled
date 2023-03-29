@@ -88,46 +88,46 @@ CancelCheck::preclaim(PreclaimContext const& ctx)
 TER
 CancelCheck::doApply()
 {
-    auto const sleCheck = view().peek(keylet::check(ctx_.tx[sfCheckID]));
+    auto const sleCheck = ctx.view().peek(keylet::check(ctx.tx[sfCheckID]));
     if (!sleCheck)
     {
         // Error should have been caught in preclaim.
-        JLOG(j_.warn()) << "Check does not exist.";
+        JLOG(ctx.journal.warn()) << "Check does not exist.";
         return tecNO_ENTRY;
     }
 
     AccountID const srcId{sleCheck->getAccountID(sfAccount)};
     AccountID const dstId{sleCheck->getAccountID(sfDestination)};
-    auto viewJ = ctx_.app.journal("View");
+    auto viewJ = ctx.app.journal("View");
 
     // If the check is not written to self (and it shouldn't be), remove the
     // check from the destination account root.
     if (srcId != dstId)
     {
         std::uint64_t const page{(*sleCheck)[sfDestinationNode]};
-        if (!view().dirRemove(
+        if (!ctx.view().dirRemove(
                 keylet::ownerDir(dstId), page, sleCheck->key(), true))
         {
-            JLOG(j_.fatal()) << "Unable to delete check from destination.";
+            JLOG(ctx.journal.fatal()) << "Unable to delete check from destination.";
             return tefBAD_LEDGER;
         }
     }
     {
         std::uint64_t const page{(*sleCheck)[sfOwnerNode]};
-        if (!view().dirRemove(
+        if (!ctx.view().dirRemove(
                 keylet::ownerDir(srcId), page, sleCheck->key(), true))
         {
-            JLOG(j_.fatal()) << "Unable to delete check from owner.";
+            JLOG(ctx.journal.fatal()) << "Unable to delete check from owner.";
             return tefBAD_LEDGER;
         }
     }
 
     // If we succeeded, update the check owner's reserve.
-    auto const sleSrc = view().peek(keylet::account(srcId));
-    adjustOwnerCount(view(), sleSrc, -1, viewJ);
+    auto const sleSrc = ctx.view().peek(keylet::account(srcId));
+    adjustOwnerCount(ctx.view(), sleSrc, -1, viewJ);
 
     // Remove check from ledger.
-    view().erase(sleCheck);
+    ctx.view().erase(sleCheck);
     return tesSUCCESS;
 }
 

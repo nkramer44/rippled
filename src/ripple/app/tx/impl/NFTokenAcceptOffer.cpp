@@ -283,20 +283,20 @@ NFTokenAcceptOffer::pay(
     if (amount < beast::zero)
         return tecINTERNAL;
 
-    auto const result = accountSend(view(), from, to, amount, j_);
+    auto const result = accountSend(ctx.view(), from, to, amount, ctx.journal);
 
     // After this amendment, if any payment would cause a non-IOU-issuer to
     // have a negative balance, or an IOU-issuer to have a positive balance in
     // their own currency, we know that something went wrong. This was
     // originally found in the context of IOU transfer fees. Since there are
     // several payouts in this tx, just confirm that the end state is OK.
-    if (!view().rules().enabled(fixNonFungibleTokensV1_2))
+    if (!ctx.view().rules().enabled(fixNonFungibleTokensV1_2))
         return result;
     if (result != tesSUCCESS)
         return result;
-    if (accountFunds(view(), from, amount, fhZERO_IF_FROZEN, j_).signum() < 0)
+    if (accountFunds(ctx.view(), from, amount, fhZERO_IF_FROZEN, ctx.journal).signum() < 0)
         return tecINSUFFICIENT_FUNDS;
-    if (accountFunds(view(), to, amount, fhZERO_IF_FROZEN, j_).signum() < 0)
+    if (accountFunds(ctx.view(), to, amount, fhZERO_IF_FROZEN, ctx.journal).signum() < 0)
         return tecINSUFFICIENT_FUNDS;
     return tesSUCCESS;
 }
@@ -306,8 +306,8 @@ NFTokenAcceptOffer::acceptOffer(std::shared_ptr<SLE> const& offer)
 {
     bool const isSell = offer->isFlag(lsfSellNFToken);
     AccountID const owner = (*offer)[sfOwner];
-    AccountID const& seller = isSell ? owner : account_;
-    AccountID const& buyer = isSell ? account_ : owner;
+    AccountID const& seller = isSell ? owner : ctx.tx.getAccountID(sfAccount);
+    AccountID const& buyer = isSell ? ctx.tx.getAccountID(sfAccount) : owner;
 
     auto const nftokenID = (*offer)[sfNFTokenID];
 
@@ -333,17 +333,17 @@ NFTokenAcceptOffer::acceptOffer(std::shared_ptr<SLE> const& offer)
     }
 
     // Now transfer the NFT:
-    auto tokenAndPage = nft::findTokenAndPage(view(), seller, nftokenID);
+    auto tokenAndPage = nft::findTokenAndPage(ctx.view(), seller, nftokenID);
 
     if (!tokenAndPage)
         return tecINTERNAL;
 
     if (auto const ret = nft::removeToken(
-            view(), seller, nftokenID, std::move(tokenAndPage->page));
+            ctx.view(), seller, nftokenID, std::move(tokenAndPage->page));
         !isTesSuccess(ret))
         return ret;
 
-    return nft::insertToken(view(), buyer, std::move(tokenAndPage->token));
+    return nft::insertToken(ctx.view(), buyer, std::move(tokenAndPage->token));
 }
 
 TER
@@ -352,23 +352,23 @@ NFTokenAcceptOffer::doApply()
     auto const loadToken = [this](std::optional<uint256> const& id) {
         std::shared_ptr<SLE> sle;
         if (id)
-            sle = view().peek(keylet::nftoffer(*id));
+            sle = ctx.view().peek(keylet::nftoffer(*id));
         return sle;
     };
 
-    auto bo = loadToken(ctx_.tx[~sfNFTokenBuyOffer]);
-    auto so = loadToken(ctx_.tx[~sfNFTokenSellOffer]);
+    auto bo = loadToken(ctx.tx[~sfNFTokenBuyOffer]);
+    auto so = loadToken(ctx.tx[~sfNFTokenSellOffer]);
 
-    if (bo && !nft::deleteTokenOffer(view(), bo))
+    if (bo && !nft::deleteTokenOffer(ctx.view(), bo))
     {
-        JLOG(j_.fatal()) << "Unable to delete buy offer '"
+        JLOG(ctx.journal.fatal()) << "Unable to delete buy offer '"
                          << to_string(bo->key()) << "': ignoring";
         return tecINTERNAL;
     }
 
-    if (so && !nft::deleteTokenOffer(view(), so))
+    if (so && !nft::deleteTokenOffer(ctx.view(), so))
     {
-        JLOG(j_.fatal()) << "Unable to delete sell offer '"
+        JLOG(ctx.journal.fatal()) << "Unable to delete sell offer '"
                          << to_string(so->key()) << "': ignoring";
         return tecINTERNAL;
     }
@@ -398,10 +398,10 @@ NFTokenAcceptOffer::doApply()
         // being paid out than the seller authorized.  That would be bad!
 
         // Send the broker the amount they requested.
-        if (auto const cut = ctx_.tx[~sfNFTokenBrokerFee];
+        if (auto const cut = ctx.tx[~sfNFTokenBrokerFee];
             cut && cut.value() != beast::zero)
         {
-            if (auto const r = pay(buyer, account_, cut.value());
+            if (auto const r = pay(buyer, ctx.tx.getAccountID(sfAccount), cut.value());
                 !isTesSuccess(r))
                 return r;
 
@@ -431,17 +431,17 @@ NFTokenAcceptOffer::doApply()
                 return r;
         }
 
-        auto tokenAndPage = nft::findTokenAndPage(view(), seller, nftokenID);
+        auto tokenAndPage = nft::findTokenAndPage(ctx.view(), seller, nftokenID);
 
         if (!tokenAndPage)
             return tecINTERNAL;
 
         if (auto const ret = nft::removeToken(
-                view(), seller, nftokenID, std::move(tokenAndPage->page));
+                ctx.view(), seller, nftokenID, std::move(tokenAndPage->page));
             !isTesSuccess(ret))
             return ret;
 
-        return nft::insertToken(view(), buyer, std::move(tokenAndPage->token));
+        return nft::insertToken(ctx.view(), buyer, std::move(tokenAndPage->token));
     }
 
     if (bo)

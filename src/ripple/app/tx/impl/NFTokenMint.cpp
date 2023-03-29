@@ -152,10 +152,10 @@ NFTokenMint::preclaim(PreclaimContext const& ctx)
 TER
 NFTokenMint::doApply()
 {
-    auto const issuer = ctx_.tx[~sfIssuer].value_or(account_);
+    auto const issuer = ctx.tx[~sfIssuer].value_or(ctx.tx.getAccountID(sfAccount));
 
     auto const tokenSeq = [this, &issuer]() -> Expected<std::uint32_t, TER> {
-        auto const root = view().peek(keylet::account(issuer));
+        auto const root = ctx.view().peek(keylet::account(issuer));
         if (root == nullptr)
             // Should not happen.  Checked in preclaim.
             return Unexpected(tecNO_ISSUER);
@@ -169,7 +169,7 @@ NFTokenMint::doApply()
 
             (*root)[sfMintedNFTokens] = nextTokenSeq;
         }
-        ctx_.view().update(root);
+        ctx.view().update(root);
         return tokenSeq;
     }();
 
@@ -177,7 +177,7 @@ NFTokenMint::doApply()
         return (tokenSeq.error());
 
     std::uint32_t const ownerCountBefore =
-        view().read(keylet::account(account_))->getFieldU32(sfOwnerCount);
+        ctx.view().read(keylet::account(ctx.tx.getAccountID(sfAccount)))->getFieldU32(sfOwnerCount);
 
     // Assemble the new NFToken.
     SOTemplate const* nfTokenTemplate =
@@ -194,18 +194,18 @@ NFTokenMint::doApply()
             object.setFieldH256(
                 sfNFTokenID,
                 createNFTokenID(
-                    static_cast<std::uint16_t>(ctx_.tx.getFlags() & 0x0000FFFF),
-                    ctx_.tx[~sfTransferFee].value_or(0),
+                    static_cast<std::uint16_t>(ctx.tx.getFlags() & 0x0000FFFF),
+                    ctx.tx[~sfTransferFee].value_or(0),
                     issuer,
-                    nft::toTaxon(ctx_.tx[sfNFTokenTaxon]),
+                    nft::toTaxon(ctx.tx[sfNFTokenTaxon]),
                     tokenSeq.value()));
 
-            if (auto const uri = ctx_.tx[~sfURI])
+            if (auto const uri = ctx.tx[~sfURI])
                 object.setFieldVL(sfURI, *uri);
         });
 
     if (TER const ret =
-            nft::insertToken(ctx_.view(), account_, std::move(newToken));
+            nft::insertToken(ctx.view(), ctx.tx.getAccountID(sfAccount), std::move(newToken));
         ret != tesSUCCESS)
         return ret;
 
@@ -214,10 +214,10 @@ NFTokenMint::doApply()
     // requiring the reserve to be met each time.  The reserve is
     // only managed when a new NFT page is added.
     if (auto const ownerCountAfter =
-            view().read(keylet::account(account_))->getFieldU32(sfOwnerCount);
+            ctx.view().read(keylet::account(ctx.tx.getAccountID(sfAccount)))->getFieldU32(sfOwnerCount);
         ownerCountAfter > ownerCountBefore)
     {
-        if (auto const reserve = view().fees().accountReserve(ownerCountAfter);
+        if (auto const reserve = ctx.view().fees().accountReserve(ownerCountAfter);
             mPriorBalance < reserve)
             return tecINSUFFICIENT_RESERVE;
     }

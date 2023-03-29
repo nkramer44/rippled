@@ -221,29 +221,29 @@ NFTokenCreateOffer::preclaim(PreclaimContext const& ctx)
 TER
 NFTokenCreateOffer::doApply()
 {
-    if (auto const acct = view().read(keylet::account(ctx_.tx[sfAccount]));
-        mPriorBalance < view().fees().accountReserve((*acct)[sfOwnerCount] + 1))
+    if (auto const acct = ctx.view().read(keylet::account(ctx.tx[sfAccount]));
+        mPriorBalance < ctx.view().fees().accountReserve((*acct)[sfOwnerCount] + 1))
         return tecINSUFFICIENT_RESERVE;
 
-    auto const nftokenID = ctx_.tx[sfNFTokenID];
+    auto const nftokenID = ctx.tx[sfNFTokenID];
 
     auto const offerID =
-        keylet::nftoffer(account_, ctx_.tx.getSeqProxy().value());
+        keylet::nftoffer(ctx.tx.getAccountID(sfAccount), ctx.tx.getSeqProxy().value());
 
     // Create the offer:
     {
         // Token offers are always added to the owner's owner directory:
-        auto const ownerNode = view().dirInsert(
-            keylet::ownerDir(account_), offerID, describeOwnerDir(account_));
+        auto const ownerNode = ctx.view().dirInsert(
+            keylet::ownerDir(ctx.tx.getAccountID(sfAccount)), offerID, describeOwnerDir(ctx.tx.getAccountID(sfAccount)));
 
         if (!ownerNode)
             return tecDIR_FULL;
 
-        bool const isSellOffer = ctx_.tx.isFlag(tfSellNFToken);
+        bool const isSellOffer = ctx.tx.isFlag(tfSellNFToken);
 
         // Token offers are also added to the token's buy or sell offer
         // directory
-        auto const offerNode = view().dirInsert(
+        auto const offerNode = ctx.view().dirInsert(
             isSellOffer ? keylet::nft_sells(nftokenID)
                         : keylet::nft_buys(nftokenID),
             offerID,
@@ -262,24 +262,24 @@ NFTokenCreateOffer::doApply()
             sleFlags |= lsfSellNFToken;
 
         auto offer = std::make_shared<SLE>(offerID);
-        (*offer)[sfOwner] = account_;
+        (*offer)[sfOwner] = ctx.tx.getAccountID(sfAccount);
         (*offer)[sfNFTokenID] = nftokenID;
-        (*offer)[sfAmount] = ctx_.tx[sfAmount];
+        (*offer)[sfAmount] = ctx.tx[sfAmount];
         (*offer)[sfFlags] = sleFlags;
         (*offer)[sfOwnerNode] = *ownerNode;
         (*offer)[sfNFTokenOfferNode] = *offerNode;
 
-        if (auto const expiration = ctx_.tx[~sfExpiration])
+        if (auto const expiration = ctx.tx[~sfExpiration])
             (*offer)[sfExpiration] = *expiration;
 
-        if (auto const destination = ctx_.tx[~sfDestination])
+        if (auto const destination = ctx.tx[~sfDestination])
             (*offer)[sfDestination] = *destination;
 
-        view().insert(offer);
+        ctx.view().insert(offer);
     }
 
     // Update owner count.
-    adjustOwnerCount(view(), view().peek(keylet::account(account_)), 1, j_);
+    adjustOwnerCount(ctx.view(), ctx.view().peek(keylet::account(ctx.tx.getAccountID(sfAccount))), 1, ctx.journal);
 
     return tesSUCCESS;
 }

@@ -136,7 +136,7 @@ void
 SetSignerList::preCompute()
 {
     // Get the quorum and operation info.
-    auto result = determineOperation(ctx_.tx, view().flags(), j_);
+    auto result = determineOperation(ctx.tx, ctx.view().flags(), ctx.journal);
     assert(std::get<0>(result) == tesSUCCESS);
     assert(std::get<3>(result) != unknown);
 
@@ -312,23 +312,23 @@ SetSignerList::validateQuorumAndSignerEntries(
 TER
 SetSignerList::replaceSignerList()
 {
-    auto const accountKeylet = keylet::account(account_);
-    auto const ownerDirKeylet = keylet::ownerDir(account_);
-    auto const signerListKeylet = keylet::signers(account_);
+    auto const accountKeylet = keylet::account(ctx.tx.getAccountID(sfAccount));
+    auto const ownerDirKeylet = keylet::ownerDir(ctx.tx.getAccountID(sfAccount));
+    auto const signerListKeylet = keylet::signers(ctx.tx.getAccountID(sfAccount));
 
     // This may be either a create or a replace.  Preemptively remove any
     // old signer list.  May reduce the reserve, so this is done before
     // checking the reserve.
     if (TER const ter = removeSignersFromLedger(
-            ctx_.app,
-            view(),
+            ctx.app,
+            ctx.view(),
             accountKeylet,
             ownerDirKeylet,
             signerListKeylet,
-            j_))
+            ctx.journal))
         return ter;
 
-    auto const sle = view().peek(accountKeylet);
+    auto const sle = ctx.view().peek(accountKeylet);
     if (!sle)
         return tefINTERNAL;
 
@@ -338,15 +338,15 @@ SetSignerList::replaceSignerList()
     // The required reserve changes based on featureMultiSignReserve...
     int addedOwnerCount{1};
     std::uint32_t flags{lsfOneOwnerCount};
-    if (!ctx_.view().rules().enabled(featureMultiSignReserve))
+    if (!ctx.view().rules().enabled(featureMultiSignReserve))
     {
         addedOwnerCount = signerCountBasedOwnerCountDelta(
-            signers_.size(), ctx_.view().rules());
+            signers_.size(), ctx.view().rules());
         flags = 0;
     }
 
     XRPAmount const newReserve{
-        view().fees().accountReserve(oldOwnerCount + addedOwnerCount)};
+        ctx.view().fees().accountReserve(oldOwnerCount + addedOwnerCount)};
 
     // We check the reserve against the starting balance because we want to
     // allow dipping into the reserve to pay fees.  This behavior is consistent
@@ -356,15 +356,15 @@ SetSignerList::replaceSignerList()
 
     // Everything's ducky.  Add the ltSIGNER_LIST to the ledger.
     auto signerList = std::make_shared<SLE>(signerListKeylet);
-    view().insert(signerList);
+    ctx.view().insert(signerList);
     writeSignersToSLE(signerList, flags);
 
-    auto viewJ = ctx_.app.journal("View");
+    auto viewJ = ctx.app.journal("View");
     // Add the signer list to the account's directory.
-    auto const page = ctx_.view().dirInsert(
-        ownerDirKeylet, signerListKeylet, describeOwnerDir(account_));
+    auto const page = ctx.view().dirInsert(
+        ownerDirKeylet, signerListKeylet, describeOwnerDir(ctx.tx.getAccountID(sfAccount)));
 
-    JLOG(j_.trace()) << "Create signer list for account " << toBase58(account_)
+    JLOG(ctx.journal.trace()) << "Create signer list for account " << toBase58(ctx.tx.getAccountID(sfAccount))
                      << ": " << (page ? "success" : "failure");
 
     if (!page)
@@ -374,17 +374,17 @@ SetSignerList::replaceSignerList()
 
     // If we succeeded, the new entry counts against the
     // creator's reserve.
-    adjustOwnerCount(view(), sle, addedOwnerCount, viewJ);
+    adjustOwnerCount(ctx.view(), sle, addedOwnerCount, viewJ);
     return tesSUCCESS;
 }
 
 TER
 SetSignerList::destroySignerList()
 {
-    auto const accountKeylet = keylet::account(account_);
+    auto const accountKeylet = keylet::account(ctx.tx.getAccountID(sfAccount));
     // Destroying the signer list is only allowed if either the master key
     // is enabled or there is a regular key.
-    SLE::pointer ledgerEntry = view().peek(accountKeylet);
+    SLE::pointer ledgerEntry = ctx.view().peek(accountKeylet);
     if (!ledgerEntry)
         return tefINTERNAL;
 
@@ -392,10 +392,10 @@ SetSignerList::destroySignerList()
         (!ledgerEntry->isFieldPresent(sfRegularKey)))
         return tecNO_ALTERNATIVE_KEY;
 
-    auto const ownerDirKeylet = keylet::ownerDir(account_);
-    auto const signerListKeylet = keylet::signers(account_);
+    auto const ownerDirKeylet = keylet::ownerDir(ctx.tx.getAccountID(sfAccount));
+    auto const signerListKeylet = keylet::signers(ctx.tx.getAccountID(sfAccount));
     return removeSignersFromLedger(
-        ctx_.app, view(), accountKeylet, ownerDirKeylet, signerListKeylet, j_);
+        ctx.app, ctx.view(), accountKeylet, ownerDirKeylet, signerListKeylet, ctx.journal);
 }
 
 void
@@ -410,7 +410,7 @@ SetSignerList::writeSignersToSLE(
         ledgerEntry->setFieldU32(sfFlags, flags);
 
     bool const expandedSignerList =
-        ctx_.view().rules().enabled(featureExpandedSignerList);
+        ctx.view().rules().enabled(featureExpandedSignerList);
 
     // Create the SignerListArray one SignerEntry at a time.
     STArray toLedger(signers_.size());

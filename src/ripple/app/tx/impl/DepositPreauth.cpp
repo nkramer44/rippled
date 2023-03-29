@@ -106,9 +106,9 @@ DepositPreauth::preclaim(PreclaimContext const& ctx)
 TER
 DepositPreauth::doApply()
 {
-    if (ctx_.tx.isFieldPresent(sfAuthorize))
+    if (ctx.tx.isFieldPresent(sfAuthorize))
     {
-        auto const sleOwner = view().peek(keylet::account(account_));
+        auto const sleOwner = ctx.view().peek(keylet::account(ctx.tx.getAccountID(sfAccount)));
         if (!sleOwner)
             return {tefINTERNAL};
 
@@ -116,7 +116,7 @@ DepositPreauth::doApply()
         // check the starting balance because we want to allow dipping into the
         // reserve to pay fees.
         {
-            STAmount const reserve{view().fees().accountReserve(
+            STAmount const reserve{ctx.view().fees().accountReserve(
                 sleOwner->getFieldU32(sfOwnerCount) + 1)};
 
             if (mPriorBalance < reserve)
@@ -125,21 +125,21 @@ DepositPreauth::doApply()
 
         // Preclaim already verified that the Preauth entry does not yet exist.
         // Create and populate the Preauth entry.
-        AccountID const auth{ctx_.tx[sfAuthorize]};
-        Keylet const preauthKeylet = keylet::depositPreauth(account_, auth);
+        AccountID const auth{ctx.tx[sfAuthorize]};
+        Keylet const preauthKeylet = keylet::depositPreauth(ctx.tx.getAccountID(sfAccount), auth);
         auto slePreauth = std::make_shared<SLE>(preauthKeylet);
 
-        slePreauth->setAccountID(sfAccount, account_);
+        slePreauth->setAccountID(sfAccount, ctx.tx.getAccountID(sfAccount));
         slePreauth->setAccountID(sfAuthorize, auth);
-        view().insert(slePreauth);
+        ctx.view().insert(slePreauth);
 
-        auto viewJ = ctx_.app.journal("View");
-        auto const page = view().dirInsert(
-            keylet::ownerDir(account_),
+        auto viewJ = ctx.app.journal("View");
+        auto const page = ctx.view().dirInsert(
+            keylet::ownerDir(ctx.tx.getAccountID(sfAccount)),
             preauthKeylet,
-            describeOwnerDir(account_));
+            describeOwnerDir(ctx.tx.getAccountID(sfAccount)));
 
-        JLOG(j_.trace()) << "Adding DepositPreauth to owner directory "
+        JLOG(ctx.journal.trace()) << "Adding DepositPreauth to owner directory "
                          << to_string(preauthKeylet.key) << ": "
                          << (page ? "success" : "failure");
 
@@ -149,15 +149,15 @@ DepositPreauth::doApply()
         slePreauth->setFieldU64(sfOwnerNode, *page);
 
         // If we succeeded, the new entry counts against the creator's reserve.
-        adjustOwnerCount(view(), sleOwner, 1, viewJ);
+        adjustOwnerCount(ctx.view(), sleOwner, 1, viewJ);
     }
     else
     {
         auto const preauth =
-            keylet::depositPreauth(account_, ctx_.tx[sfUnauthorize]);
+            keylet::depositPreauth(ctx.tx.getAccountID(sfAccount), ctx.tx[sfUnauthorize]);
 
         return DepositPreauth::removeFromLedger(
-            ctx_.app, view(), preauth.key, j_);
+            ctx.app, ctx.view(), preauth.key, ctx.journal);
     }
     return tesSUCCESS;
 }

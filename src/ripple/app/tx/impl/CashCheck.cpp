@@ -254,20 +254,20 @@ CashCheck::doApply()
 {
     // Flow requires that we operate on a PaymentSandbox, rather than
     // directly on a View.
-    PaymentSandbox psb(&ctx_.view());
+    PaymentSandbox psb(&ctx.view());
 
-    auto sleCheck = psb.peek(keylet::check(ctx_.tx[sfCheckID]));
+    auto sleCheck = psb.peek(keylet::check(ctx.tx[sfCheckID]));
     if (!sleCheck)
     {
-        JLOG(j_.fatal()) << "Precheck did not verify check's existence.";
+        JLOG(ctx.journal.fatal()) << "Precheck did not verify check's existence.";
         return tecFAILED_PROCESSING;
     }
 
     AccountID const srcId{sleCheck->getAccountID(sfAccount)};
     if (!psb.exists(keylet::account(srcId)) ||
-        !psb.exists(keylet::account(account_)))
+        !psb.exists(keylet::account(ctx.tx.getAccountID(sfAccount))))
     {
-        JLOG(ctx_.journal.fatal())
+        JLOG(ctx.journal.fatal())
             << "Precheck did not verify source or destination's existence.";
         return tecFAILED_PROCESSING;
     }
@@ -282,11 +282,11 @@ CashCheck::doApply()
     //
     // If it is not a check to self (as should be the case), then there's
     // work to do...
-    auto viewJ = ctx_.app.journal("View");
-    auto const optDeliverMin = ctx_.tx[~sfDeliverMin];
+    auto viewJ = ctx.app.journal("View");
+    auto const optDeliverMin = ctx.tx[~sfDeliverMin];
     bool const doFix1623{psb.rules().enabled(fix1623)};
 
-    if (srcId != account_)
+    if (srcId != ctx.tx.getAccountID(sfAccount))
     {
         STAmount const sendMax = sleCheck->at(sfSendMax);
 
@@ -307,13 +307,13 @@ CashCheck::doApply()
             STAmount const xrpDeliver{
                 optDeliverMin
                     ? std::max(*optDeliverMin, std::min(sendMax, srcLiquid))
-                    : ctx_.tx.getFieldAmount(sfAmount)};
+                    : ctx.tx.getFieldAmount(sfAmount)};
 
             if (srcLiquid < xrpDeliver)
             {
                 // Vote no. However the transaction might succeed if applied
                 // in a different order.
-                JLOG(j_.trace()) << "Cash Check: Insufficient XRP: "
+                JLOG(ctx.journal.trace()) << "Cash Check: Insufficient XRP: "
                                  << srcLiquid.getFullText() << " < "
                                  << xrpDeliver.getFullText();
                 return tecUNFUNDED_PAYMENT;
@@ -321,11 +321,11 @@ CashCheck::doApply()
 
             if (optDeliverMin && doFix1623)
                 // Set the DeliveredAmount metadata.
-                ctx_.deliver(xrpDeliver);
+                ctx.deliver(xrpDeliver);
 
             // The source account has enough XRP so make the ledger change.
             if (TER const ter{
-                    transferXRP(psb, srcId, account_, xrpDeliver, viewJ)};
+                    transferXRP(psb, srcId, ctx.tx.getAccountID(sfAccount), xrpDeliver, viewJ)};
                 ter != tesSUCCESS)
             {
                 // The transfer failed.  Return the error code.
@@ -344,14 +344,14 @@ CashCheck::doApply()
                                     optDeliverMin->issue(),
                                     STAmount::cMaxValue / 2,
                                     STAmount::cMaxOffset)
-                              : ctx_.tx.getFieldAmount(sfAmount)};
+                              : ctx.tx.getFieldAmount(sfAmount)};
 
             // If a trust line does not exist yet create one.
             Issue const& trustLineIssue = flowDeliver.issue();
             AccountID const issuer = flowDeliver.getIssuer();
-            AccountID const truster = issuer == account_ ? srcId : account_;
+            AccountID const truster = issuer == ctx.tx.getAccountID(sfAccount) ? srcId : ctx.tx.getAccountID(sfAccount);
             Keylet const trustLineKey = keylet::line(truster, trustLineIssue);
-            bool const destLow = issuer > account_;
+            bool const destLow = issuer > ctx.tx.getAccountID(sfAccount);
 
             bool const checkCashMakesTrustLine =
                 psb.rules().enabled(featureCheckCashMakesTrustLine);
@@ -365,13 +365,13 @@ CashCheck::doApply()
                 //     a. this (destination) account and
                 //     b. issuing account (not sending account).
 
-                auto const sleDst = psb.peek(keylet::account(account_));
+                auto const sleDst = psb.peek(keylet::account(ctx.tx.getAccountID(sfAccount)));
 
                 // Can the account cover the trust line's reserve?
                 if (std::uint32_t const ownerCount = {sleDst->at(sfOwnerCount)};
                     mPriorBalance < psb.fees().accountReserve(ownerCount + 1))
                 {
-                    JLOG(j_.trace()) << "Trust line does not exist. "
+                    JLOG(ctx.journal.trace()) << "Trust line does not exist. "
                                         "Insufficent reserve to create line.";
 
                     return tecNO_LINE_INSUF_RESERVE;
@@ -386,14 +386,14 @@ CashCheck::doApply()
                         psb,                            // payment sandbox
                         destLow,                        // is dest low?
                         issuer,                         // source
-                        account_,                       // destination
+                        ctx.tx.getAccountID(sfAccount),                       // destination
                         trustLineKey.key,               // ledger index
                         sleDst,                         // Account to add to
                         false,                          // authorize account
                         (sleDst->getFlags() & lsfDefaultRipple) == 0,
                         false,                          // freeze trust line
                         initialBalance,                 // zero initial balance
-                        Issue(currency, account_),      // limit of zero
+                        Issue(currency, ctx.tx.getAccountID(sfAccount)),      // limit of zero
                         0,                              // quality in
                         0,                              // quality out
                         viewJ);                         // journal
@@ -442,7 +442,7 @@ CashCheck::doApply()
                 psb,
                 flowDeliver,
                 srcId,
-                account_,
+                ctx.tx.getAccountID(sfAccount),
                 STPathSet{},
                 true,                              // default path
                 static_cast<bool>(optDeliverMin),  // partial payment
@@ -454,7 +454,7 @@ CashCheck::doApply()
 
             if (result.result() != tesSUCCESS)
             {
-                JLOG(ctx_.journal.warn()) << "flow failed when cashing check.";
+                JLOG(ctx.journal.warn()) << "flow failed when cashing check.";
                 return result.result();
             }
 
@@ -463,34 +463,34 @@ CashCheck::doApply()
             {
                 if (result.actualAmountOut < *optDeliverMin)
                 {
-                    JLOG(ctx_.journal.warn())
+                    JLOG(ctx.journal.warn())
                         << "flow did not produce DeliverMin.";
                     return tecPATH_PARTIAL;
                 }
                 if (doFix1623 && !checkCashMakesTrustLine)
                     // Set the delivered_amount metadata.
-                    ctx_.deliver(result.actualAmountOut);
+                    ctx.deliver(result.actualAmountOut);
             }
 
             // Set the delivered amount metadata in all cases, not just
             // for DeliverMin.
             if (checkCashMakesTrustLine)
-                ctx_.deliver(result.actualAmountOut);
+                ctx.deliver(result.actualAmountOut);
 
-            sleCheck = psb.peek(keylet::check(ctx_.tx[sfCheckID]));
+            sleCheck = psb.peek(keylet::check(ctx.tx[sfCheckID]));
         }
     }
 
     // Check was cashed.  If not a self send (and it shouldn't be), remove
     // check link from destination directory.
-    if (srcId != account_ &&
+    if (srcId != ctx.tx.getAccountID(sfAccount) &&
         !psb.dirRemove(
-            keylet::ownerDir(account_),
+            keylet::ownerDir(ctx.tx.getAccountID(sfAccount)),
             sleCheck->at(sfDestinationNode),
             sleCheck->key(),
             true))
     {
-        JLOG(j_.fatal()) << "Unable to delete check from destination.";
+        JLOG(ctx.journal.fatal()) << "Unable to delete check from destination.";
         return tefBAD_LEDGER;
     }
 
@@ -501,7 +501,7 @@ CashCheck::doApply()
             sleCheck->key(),
             true))
     {
-        JLOG(j_.fatal()) << "Unable to delete check from owner.";
+        JLOG(ctx.journal.fatal()) << "Unable to delete check from owner.";
         return tefBAD_LEDGER;
     }
 
@@ -511,7 +511,7 @@ CashCheck::doApply()
     // Remove check from ledger.
     psb.erase(sleCheck);
 
-    psb.apply(ctx_.rawView());
+    psb.apply(ctx.rawView());
     return tesSUCCESS;
 }
 

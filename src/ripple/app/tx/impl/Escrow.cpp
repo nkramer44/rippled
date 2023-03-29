@@ -159,42 +159,42 @@ EscrowCreate::preflight(PreflightContext const& ctx)
 TER
 EscrowCreate::doApply()
 {
-    auto const closeTime = ctx_.view().info().parentCloseTime;
+    auto const closeTime = ctx.view().info().parentCloseTime;
 
     // Prior to fix1571, the cancel and finish times could be greater
     // than or equal to the parent ledgers' close time.
     //
     // With fix1571, we require that they both be strictly greater
     // than the parent ledgers' close time.
-    if (ctx_.view().rules().enabled(fix1571))
+    if (ctx.view().rules().enabled(fix1571))
     {
-        if (ctx_.tx[~sfCancelAfter] && after(closeTime, ctx_.tx[sfCancelAfter]))
+        if (ctx.tx[~sfCancelAfter] && after(closeTime, ctx.tx[sfCancelAfter]))
             return tecNO_PERMISSION;
 
-        if (ctx_.tx[~sfFinishAfter] && after(closeTime, ctx_.tx[sfFinishAfter]))
+        if (ctx.tx[~sfFinishAfter] && after(closeTime, ctx.tx[sfFinishAfter]))
             return tecNO_PERMISSION;
     }
     else
     {
-        if (ctx_.tx[~sfCancelAfter])
+        if (ctx.tx[~sfCancelAfter])
         {
-            auto const cancelAfter = ctx_.tx[sfCancelAfter];
+            auto const cancelAfter = ctx.tx[sfCancelAfter];
 
             if (closeTime.time_since_epoch().count() >= cancelAfter)
                 return tecNO_PERMISSION;
         }
 
-        if (ctx_.tx[~sfFinishAfter])
+        if (ctx.tx[~sfFinishAfter])
         {
-            auto const finishAfter = ctx_.tx[sfFinishAfter];
+            auto const finishAfter = ctx.tx[sfFinishAfter];
 
             if (closeTime.time_since_epoch().count() >= finishAfter)
                 return tecNO_PERMISSION;
         }
     }
 
-    auto const account = ctx_.tx[sfAccount];
-    auto const sle = ctx_.view().peek(keylet::account(account));
+    auto const account = ctx.tx[sfAccount];
+    auto const sle = ctx.view().peek(keylet::account(account));
     if (!sle)
         return tefINTERNAL;
 
@@ -202,28 +202,28 @@ EscrowCreate::doApply()
     {
         auto const balance = STAmount((*sle)[sfBalance]).xrp();
         auto const reserve =
-            ctx_.view().fees().accountReserve((*sle)[sfOwnerCount] + 1);
+            ctx.view().fees().accountReserve((*sle)[sfOwnerCount] + 1);
 
         if (balance < reserve)
             return tecINSUFFICIENT_RESERVE;
 
-        if (balance < reserve + STAmount(ctx_.tx[sfAmount]).xrp())
+        if (balance < reserve + STAmount(ctx.tx[sfAmount]).xrp())
             return tecUNFUNDED;
     }
 
     // Check destination account
     {
         auto const sled =
-            ctx_.view().read(keylet::account(ctx_.tx[sfDestination]));
+            ctx.view().read(keylet::account(ctx.tx[sfDestination]));
         if (!sled)
             return tecNO_DST;
         if (((*sled)[sfFlags] & lsfRequireDestTag) &&
-            !ctx_.tx[~sfDestinationTag])
+            !ctx.tx[~sfDestinationTag])
             return tecDST_TAG_NEEDED;
 
         // Obeying the lsfDissalowXRP flag was a bug.  Piggyback on
         // featureDepositAuth to remove the bug.
-        if (!ctx_.view().rules().enabled(featureDepositAuth) &&
+        if (!ctx.view().rules().enabled(featureDepositAuth) &&
             ((*sled)[sfFlags] & lsfDisallowXRP))
             return tecNO_TARGET;
     }
@@ -231,22 +231,22 @@ EscrowCreate::doApply()
     // Create escrow in ledger.  Note that we we use the value from the
     // sequence or ticket.  For more explanation see comments in SeqProxy.h.
     Keylet const escrowKeylet =
-        keylet::escrow(account, ctx_.tx.getSeqProxy().value());
+        keylet::escrow(account, ctx.tx.getSeqProxy().value());
     auto const slep = std::make_shared<SLE>(escrowKeylet);
-    (*slep)[sfAmount] = ctx_.tx[sfAmount];
+    (*slep)[sfAmount] = ctx.tx[sfAmount];
     (*slep)[sfAccount] = account;
-    (*slep)[~sfCondition] = ctx_.tx[~sfCondition];
-    (*slep)[~sfSourceTag] = ctx_.tx[~sfSourceTag];
-    (*slep)[sfDestination] = ctx_.tx[sfDestination];
-    (*slep)[~sfCancelAfter] = ctx_.tx[~sfCancelAfter];
-    (*slep)[~sfFinishAfter] = ctx_.tx[~sfFinishAfter];
-    (*slep)[~sfDestinationTag] = ctx_.tx[~sfDestinationTag];
+    (*slep)[~sfCondition] = ctx.tx[~sfCondition];
+    (*slep)[~sfSourceTag] = ctx.tx[~sfSourceTag];
+    (*slep)[sfDestination] = ctx.tx[sfDestination];
+    (*slep)[~sfCancelAfter] = ctx.tx[~sfCancelAfter];
+    (*slep)[~sfFinishAfter] = ctx.tx[~sfFinishAfter];
+    (*slep)[~sfDestinationTag] = ctx.tx[~sfDestinationTag];
 
-    ctx_.view().insert(slep);
+    ctx.view().insert(slep);
 
     // Add escrow to sender's owner directory
     {
-        auto page = ctx_.view().dirInsert(
+        auto page = ctx.view().dirInsert(
             keylet::ownerDir(account), escrowKeylet, describeOwnerDir(account));
         if (!page)
             return tecDIR_FULL;
@@ -254,9 +254,9 @@ EscrowCreate::doApply()
     }
 
     // If it's not a self-send, add escrow to recipient's owner directory.
-    if (auto const dest = ctx_.tx[sfDestination]; dest != ctx_.tx[sfAccount])
+    if (auto const dest = ctx.tx[sfDestination]; dest != ctx.tx[sfAccount])
     {
-        auto page = ctx_.view().dirInsert(
+        auto page = ctx.view().dirInsert(
             keylet::ownerDir(dest), escrowKeylet, describeOwnerDir(dest));
         if (!page)
             return tecDIR_FULL;
@@ -264,9 +264,9 @@ EscrowCreate::doApply()
     }
 
     // Deduct owner's balance, increment owner count
-    (*sle)[sfBalance] = (*sle)[sfBalance] - ctx_.tx[sfAmount];
-    adjustOwnerCount(ctx_.view(), sle, 1, ctx_.journal);
-    ctx_.view().update(sle);
+    (*sle)[sfBalance] = (*sle)[sfBalance] - ctx.tx[sfAmount];
+    adjustOwnerCount(ctx.view(), sle, 1, ctx.journal);
+    ctx.view().update(sle);
 
     return tesSUCCESS;
 }
@@ -354,17 +354,17 @@ EscrowFinish::calculateBaseFee(ReadView const& view, STTx const& tx)
 TER
 EscrowFinish::doApply()
 {
-    auto const k = keylet::escrow(ctx_.tx[sfOwner], ctx_.tx[sfOfferSequence]);
-    auto const slep = ctx_.view().peek(k);
+    auto const k = keylet::escrow(ctx.tx[sfOwner], ctx.tx[sfOfferSequence]);
+    auto const slep = ctx.view().peek(k);
     if (!slep)
         return tecNO_TARGET;
 
     // If a cancel time is present, a finish operation should only succeed prior
     // to that time. fix1571 corrects a logic error in the check that would make
     // a finish only succeed strictly after the cancel time.
-    if (ctx_.view().rules().enabled(fix1571))
+    if (ctx.view().rules().enabled(fix1571))
     {
-        auto const now = ctx_.view().info().parentCloseTime;
+        auto const now = ctx.view().info().parentCloseTime;
 
         // Too soon: can't execute before the finish time
         if ((*slep)[~sfFinishAfter] && !after(now, (*slep)[sfFinishAfter]))
@@ -378,30 +378,30 @@ EscrowFinish::doApply()
     {
         // Too soon?
         if ((*slep)[~sfFinishAfter] &&
-            ctx_.view().info().parentCloseTime.time_since_epoch().count() <=
+            ctx.view().info().parentCloseTime.time_since_epoch().count() <=
                 (*slep)[sfFinishAfter])
             return tecNO_PERMISSION;
 
         // Too late?
         if ((*slep)[~sfCancelAfter] &&
-            ctx_.view().info().parentCloseTime.time_since_epoch().count() <=
+            ctx.view().info().parentCloseTime.time_since_epoch().count() <=
                 (*slep)[sfCancelAfter])
             return tecNO_PERMISSION;
     }
 
     // Check cryptocondition fulfillment
     {
-        auto const id = ctx_.tx.getTransactionID();
-        auto flags = ctx_.app.getHashRouter().getFlags(id);
+        auto const id = ctx.tx.getTransactionID();
+        auto flags = ctx.app.getHashRouter().getFlags(id);
 
-        auto const cb = ctx_.tx[~sfCondition];
+        auto const cb = ctx.tx[~sfCondition];
 
         // It's unlikely that the results of the check will
         // expire from the hash router, but if it happens,
         // simply re-run the check.
         if (cb && !(flags & (SF_CF_INVALID | SF_CF_VALID)))
         {
-            auto const fb = ctx_.tx[~sfFulfillment];
+            auto const fb = ctx.tx[~sfFulfillment];
 
             if (!fb)
                 return tecINTERNAL;
@@ -411,7 +411,7 @@ EscrowFinish::doApply()
             else
                 flags = SF_CF_INVALID;
 
-            ctx_.app.getHashRouter().setFlags(id, flags);
+            ctx.app.getHashRouter().setFlags(id, flags);
         }
 
         // If the check failed, then simply return an error
@@ -438,11 +438,11 @@ EscrowFinish::doApply()
 
     // NOTE: Escrow payments cannot be used to fund accounts.
     AccountID const destID = (*slep)[sfDestination];
-    auto const sled = ctx_.view().peek(keylet::account(destID));
+    auto const sled = ctx.view().peek(keylet::account(destID));
     if (!sled)
         return tecNO_DST;
 
-    if (ctx_.view().rules().enabled(featureDepositAuth))
+    if (ctx.view().rules().enabled(featureDepositAuth))
     {
         // Is EscrowFinished authorized?
         if (sled->getFlags() & lsfDepositAuth)
@@ -451,9 +451,9 @@ EscrowFinish::doApply()
             // ways to get an EscrowFinished into the account:
             //  1. If Account == Destination, or
             //  2. If Account is deposit preauthorized by destination.
-            if (account_ != destID)
+            if (ctx.tx.getAccountID(sfAccount) != destID)
             {
-                if (!view().exists(keylet::depositPreauth(destID, account_)))
+                if (!ctx.view().exists(keylet::depositPreauth(destID, ctx.tx.getAccountID(sfAccount))))
                     return tecNO_PERMISSION;
             }
         }
@@ -464,10 +464,10 @@ EscrowFinish::doApply()
     // Remove escrow from owner directory
     {
         auto const page = (*slep)[sfOwnerNode];
-        if (!ctx_.view().dirRemove(
+        if (!ctx.view().dirRemove(
                 keylet::ownerDir(account), page, k.key, true))
         {
-            JLOG(j_.fatal()) << "Unable to delete Escrow from owner.";
+            JLOG(ctx.journal.fatal()) << "Unable to delete Escrow from owner.";
             return tefBAD_LEDGER;
         }
     }
@@ -475,25 +475,25 @@ EscrowFinish::doApply()
     // Remove escrow from recipient's owner directory, if present.
     if (auto const optPage = (*slep)[~sfDestinationNode])
     {
-        if (!ctx_.view().dirRemove(
+        if (!ctx.view().dirRemove(
                 keylet::ownerDir(destID), *optPage, k.key, true))
         {
-            JLOG(j_.fatal()) << "Unable to delete Escrow from recipient.";
+            JLOG(ctx.journal.fatal()) << "Unable to delete Escrow from recipient.";
             return tefBAD_LEDGER;
         }
     }
 
     // Transfer amount to destination
     (*sled)[sfBalance] = (*sled)[sfBalance] + (*slep)[sfAmount];
-    ctx_.view().update(sled);
+    ctx.view().update(sled);
 
     // Adjust source owner count
-    auto const sle = ctx_.view().peek(keylet::account(account));
-    adjustOwnerCount(ctx_.view(), sle, -1, ctx_.journal);
-    ctx_.view().update(sle);
+    auto const sle = ctx.view().peek(keylet::account(account));
+    adjustOwnerCount(ctx.view(), sle, -1, ctx.journal);
+    ctx.view().update(sle);
 
     // Remove escrow from ledger
-    ctx_.view().erase(slep);
+    ctx.view().erase(slep);
 
     return tesSUCCESS;
 }
@@ -515,14 +515,14 @@ EscrowCancel::preflight(PreflightContext const& ctx)
 TER
 EscrowCancel::doApply()
 {
-    auto const k = keylet::escrow(ctx_.tx[sfOwner], ctx_.tx[sfOfferSequence]);
-    auto const slep = ctx_.view().peek(k);
+    auto const k = keylet::escrow(ctx.tx[sfOwner], ctx.tx[sfOfferSequence]);
+    auto const slep = ctx.view().peek(k);
     if (!slep)
         return tecNO_TARGET;
 
-    if (ctx_.view().rules().enabled(fix1571))
+    if (ctx.view().rules().enabled(fix1571))
     {
-        auto const now = ctx_.view().info().parentCloseTime;
+        auto const now = ctx.view().info().parentCloseTime;
 
         // No cancel time specified: can't execute at all.
         if (!(*slep)[~sfCancelAfter])
@@ -536,7 +536,7 @@ EscrowCancel::doApply()
     {
         // Too soon?
         if (!(*slep)[~sfCancelAfter] ||
-            ctx_.view().info().parentCloseTime.time_since_epoch().count() <=
+            ctx.view().info().parentCloseTime.time_since_epoch().count() <=
                 (*slep)[sfCancelAfter])
             return tecNO_PERMISSION;
     }
@@ -546,10 +546,10 @@ EscrowCancel::doApply()
     // Remove escrow from owner directory
     {
         auto const page = (*slep)[sfOwnerNode];
-        if (!ctx_.view().dirRemove(
+        if (!ctx.view().dirRemove(
                 keylet::ownerDir(account), page, k.key, true))
         {
-            JLOG(j_.fatal()) << "Unable to delete Escrow from owner.";
+            JLOG(ctx.journal.fatal()) << "Unable to delete Escrow from owner.";
             return tefBAD_LEDGER;
         }
     }
@@ -557,25 +557,25 @@ EscrowCancel::doApply()
     // Remove escrow from recipient's owner directory, if present.
     if (auto const optPage = (*slep)[~sfDestinationNode]; optPage)
     {
-        if (!ctx_.view().dirRemove(
+        if (!ctx.view().dirRemove(
                 keylet::ownerDir((*slep)[sfDestination]),
                 *optPage,
                 k.key,
                 true))
         {
-            JLOG(j_.fatal()) << "Unable to delete Escrow from recipient.";
+            JLOG(ctx.journal.fatal()) << "Unable to delete Escrow from recipient.";
             return tefBAD_LEDGER;
         }
     }
 
     // Transfer amount back to owner, decrement owner count
-    auto const sle = ctx_.view().peek(keylet::account(account));
+    auto const sle = ctx.view().peek(keylet::account(account));
     (*sle)[sfBalance] = (*sle)[sfBalance] + (*slep)[sfAmount];
-    adjustOwnerCount(ctx_.view(), sle, -1, ctx_.journal);
-    ctx_.view().update(sle);
+    adjustOwnerCount(ctx.view(), sle, -1, ctx.journal);
+    ctx.view().update(sle);
 
     // Remove escrow from ledger
-    ctx_.view().erase(slep);
+    ctx.view().erase(slep);
 
     return tesSUCCESS;
 }

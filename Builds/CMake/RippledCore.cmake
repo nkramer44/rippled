@@ -13,8 +13,6 @@ if (unity)
   set_target_properties(xrpl_core PROPERTIES UNITY_BUILD ON)
 endif ()
 
-find_package(pybind11 REQUIRED)
-
 
 #[===============================[
     beast/legacy FILES:
@@ -456,7 +454,6 @@ target_sources (rippled PRIVATE
   src/ripple/app/tx/impl/CreateTicket.cpp
   src/ripple/app/tx/impl/DeleteAccount.cpp
   src/ripple/app/tx/impl/DepositPreauth.cpp
-  src/ripple/app/tx/impl/DummyTx.cpp
   src/ripple/app/tx/impl/Escrow.cpp
   src/ripple/app/tx/impl/NFTokenAcceptOffer.cpp
   src/ripple/app/tx/impl/NFTokenBurn.cpp
@@ -1009,7 +1006,6 @@ target_link_libraries (rippled
   Ripple::opts
   Ripple::libs
   Ripple::xrpl_core
-  pybind11::embed
   )
 exclude_if_included (rippled)
 # define a macro for tests that might need to

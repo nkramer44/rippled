@@ -84,23 +84,23 @@ CreateTicket::preclaim(PreclaimContext const& ctx)
 TER
 CreateTicket::doApply()
 {
-    SLE::pointer const sleAccountRoot = view().peek(keylet::account(account_));
+    SLE::pointer const sleAccountRoot = ctx.view().peek(keylet::account(ctx.tx.getAccountID(sfAccount)));
     if (!sleAccountRoot)
         return tefINTERNAL;
 
     // Each ticket counts against the reserve of the issuing account, but we
     // check the starting balance because we want to allow dipping into the
     // reserve to pay fees.
-    std::uint32_t const ticketCount = ctx_.tx[sfTicketCount];
+    std::uint32_t const ticketCount = ctx.tx[sfTicketCount];
     {
-        XRPAmount const reserve = view().fees().accountReserve(
+        XRPAmount const reserve = ctx.view().fees().accountReserve(
             sleAccountRoot->getFieldU32(sfOwnerCount) + ticketCount);
 
         if (mPriorBalance < reserve)
             return tecINSUFFICIENT_RESERVE;
     }
 
-    beast::Journal viewJ{ctx_.app.journal("View")};
+    beast::Journal viewJ{ctx.app.journal("View")};
 
     // The starting ticket sequence is the same as the current account
     // root sequence.  Before we got here to doApply(), the transaction
@@ -110,26 +110,26 @@ CreateTicket::doApply()
 
     // Sanity check that the transaction machinery really did already
     // increment the account root Sequence.
-    if (std::uint32_t const txSeq = ctx_.tx[sfSequence];
+    if (std::uint32_t const txSeq = ctx.tx[sfSequence];
         txSeq != 0 && txSeq != (firstTicketSeq - 1))
         return tefINTERNAL;
 
     for (std::uint32_t i = 0; i < ticketCount; ++i)
     {
         std::uint32_t const curTicketSeq = firstTicketSeq + i;
-        Keylet const ticketKeylet = keylet::ticket(account_, curTicketSeq);
+        Keylet const ticketKeylet = keylet::ticket(ctx.tx.getAccountID(sfAccount), curTicketSeq);
         SLE::pointer sleTicket = std::make_shared<SLE>(ticketKeylet);
 
-        sleTicket->setAccountID(sfAccount, account_);
+        sleTicket->setAccountID(sfAccount, ctx.tx.getAccountID(sfAccount));
         sleTicket->setFieldU32(sfTicketSequence, curTicketSeq);
-        view().insert(sleTicket);
+        ctx.view().insert(sleTicket);
 
-        auto const page = view().dirInsert(
-            keylet::ownerDir(account_),
+        auto const page = ctx.view().dirInsert(
+            keylet::ownerDir(ctx.tx.getAccountID(sfAccount)),
             ticketKeylet,
-            describeOwnerDir(account_));
+            describeOwnerDir(ctx.tx.getAccountID(sfAccount)));
 
-        JLOG(j_.trace()) << "Creating ticket " << to_string(ticketKeylet.key)
+        JLOG(ctx.journal.trace()) << "Creating ticket " << to_string(ticketKeylet.key)
                          << ": " << (page ? "success" : "failure");
 
         if (!page)
@@ -145,7 +145,7 @@ CreateTicket::doApply()
     sleAccountRoot->setFieldU32(sfTicketCount, oldTicketCount + ticketCount);
 
     // Every added Ticket counts against the creator's reserve.
-    adjustOwnerCount(view(), sleAccountRoot, ticketCount, viewJ);
+    adjustOwnerCount(ctx.view(), sleAccountRoot, ticketCount, viewJ);
 
     // TicketCreate is the only transaction that can cause an account root's
     // Sequence field to increase by more than one.  October 2018.

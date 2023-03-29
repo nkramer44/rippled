@@ -38,7 +38,7 @@ public:
 
     /** Construct a Transactor subclass that creates an offer in the ledger. */
     explicit CreateOffer(ApplyContext& ctx)
-        : Transactor(ctx), stepCounter_(1000, j_)
+        : Transactor(ctx), stepCounter_(1000, ctx.journal)
     {
     }
 

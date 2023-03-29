@@ -84,10 +84,8 @@ struct PreflightResult;
 class Transactor
 {
 protected:
-    ApplyContext& ctx_;
-    beast::Journal const j_;
+    ApplyContext& ctx;
 
-    AccountID const account_;
     XRPAmount mPriorBalance;   // Balance before fees.
     XRPAmount mSourceBalance;  // Balance after fees.
 
@@ -101,12 +99,6 @@ public:
     /** Process the transaction. */
     std::pair<TER, bool>
     operator()();
-
-    ApplyView&
-    view()
-    {
-        return ctx_.view();
-    }
 
     /////////////////////////////////////////////////////
     /*
@@ -155,7 +147,7 @@ protected:
     TER
     apply();
 
-    explicit Transactor(ApplyContext& ctx);
+    explicit Transactor(ApplyContext& applyCtx);
 
     virtual void
     preCompute();
