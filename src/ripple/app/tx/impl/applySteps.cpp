@@ -19,6 +19,7 @@
 
 #include <ripple/app/tx/applySteps.h>
 #include <ripple/app/tx/impl/ApplyContext.h>
+#include <ripple/app/tx/impl/ApplyHandler.h>
 #include <ripple/app/tx/impl/CancelCheck.h>
 #include <ripple/app/tx/impl/CancelOffer.h>
 #include <ripple/app/tx/impl/CashCheck.h>
@@ -49,20 +50,19 @@ namespace ripple {
 typedef NotTEC (*preflightPtr)(PreflightContext const&);
 typedef TER (*preclaimPtr)(PreclaimContext const&);
 typedef XRPAmount (*calculateBaseFeePtr)(ReadView const& view, STTx const& tx);
-typedef std::pair<TER, bool> (*applyPtr)(ApplyContext& ctx);
+typedef TER (*doApplyPtr)(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance);
 
 struct TransactorWrapper {
     preflightPtr preflight;
     preclaimPtr preclaim;
     calculateBaseFeePtr calculateBaseFee;
-    applyPtr apply;
+    doApplyPtr doApply;
 };
 
-template <class T>
 std::pair<TER, bool>
-apply_helper(ApplyContext& ctx)
+doApply_helper(ApplyContext& ctx, doApplyPtr doApplyFn)
 {
-    T p(ctx);
+    ApplyHandler p(ctx, doApplyFn);
     return p();
 }
 
@@ -74,7 +74,7 @@ transactor_helper()
         T::preflight,
         T::preclaim,
         T::calculateBaseFee,
-        apply_helper<T>,
+        T::doApply,
     };
 };
 
@@ -86,7 +86,7 @@ transactor_helper(std::string pathToLib)
         (preflightPtr)dlsym(handle, "preflight"),
         (preclaimPtr)dlsym(handle, "preclaim"),
         (calculateBaseFeePtr)dlsym(handle, "calculateBaseFee"),
-        (applyPtr)dlsym(handle, "apply"),
+        (doApplyPtr)dlsym(handle, "doApply"),
     };
 };
 
@@ -244,7 +244,7 @@ invoke_apply(ApplyContext& ctx)
     if (auto it = transactorMap.find(ctx.tx.getTxnType());
         it != transactorMap.end())
     {
-        return it->second.apply(ctx);
+        return doApply_helper(ctx, it->second.doApply);
     }
     assert(false);
     return {temUNKNOWN, false};

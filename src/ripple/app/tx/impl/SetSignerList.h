@@ -58,8 +58,6 @@ public:
 
     static TER
     doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance);
-    void
-    preCompute() override;
 
     // Interface used by DeleteAccount
     static TER

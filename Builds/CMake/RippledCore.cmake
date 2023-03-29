@@ -470,6 +470,7 @@ target_sources (rippled PRIVATE
   src/ripple/app/tx/impl/Taker.cpp
   src/ripple/app/tx/impl/apply.cpp
   src/ripple/app/tx/impl/applySteps.cpp
+  src/ripple/app/tx/impl/ApplyHandler.cpp
   #[===============================[
      main sources:
        subdir: basics (partial)

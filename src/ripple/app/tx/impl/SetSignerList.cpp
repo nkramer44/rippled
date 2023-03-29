@@ -141,13 +141,6 @@ SetSignerList::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSo
     return temMALFORMED;
 }
 
-void
-SetSignerList::preCompute()
-{
-
-    return Transactor::preCompute();
-}
-
 // The return type is signed so it is compatible with the 3rd argument
 // of adjustOwnerCount() (which must be signed).
 //
