@@ -1114,6 +1114,13 @@ private:
 
 //------------------------------------------------------------------------------
 
+void
+addPluginTransactor(TxType type, std::string libPath)
+{
+    addToTransactorMap(type, libPath);
+    addToTxFormats(type, libPath);
+}
+
 // TODO Break this up into smaller, more digestible initialization segments.
 bool
 ApplicationImp::setup(boost::program_options::variables_map const& cmdline)
@@ -1141,8 +1148,8 @@ ApplicationImp::setup(boost::program_options::variables_map const& cmdline)
         });
 
     // Add plugin transactors
-    addToTransactorMap(ttDUMMY_TX, "/Users/mvadari/Documents/plugin_transactor/python/libdummy_tx.dylib");
-    addToTransactorMap(ttTRUST_SET, "/Users/mvadari/Documents/plugin_transactor/cpp/build/libplugin_transactor.dylib");
+    // addPluginTransactor(ttDUMMY_TX, "/Users/mvadari/Documents/plugin_transactor/python/libdummy_tx.dylib");
+    addPluginTransactor(ttTRUST_SET, "/Users/mvadari/Documents/plugin_transactor/cpp/build/libplugin_transactor.dylib");
 
     auto debug_log = config_->getDebugLogFile();
 

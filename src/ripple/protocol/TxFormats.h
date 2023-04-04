@@ -177,6 +177,9 @@ public:
     getInstance();
 };
 
+void
+addToTxFormats(TxType type, std::string dynamicLib);
+
 }  // namespace ripple
 
 #endif

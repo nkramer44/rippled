@@ -19,30 +19,40 @@
 
 #include <ripple/protocol/TxFormats.h>
 #include <ripple/protocol/jss.h>
+#include <list>
+#include <dlfcn.h>
 
 namespace ripple {
 
-TxFormats::TxFormats()
-{
-    // Fields shared by all txFormats:
-    static const std::initializer_list<SOElement> commonFields{
-        {sfTransactionType, soeREQUIRED},
-        {sfFlags, soeOPTIONAL},
-        {sfSourceTag, soeOPTIONAL},
-        {sfAccount, soeREQUIRED},
-        {sfSequence, soeREQUIRED},
-        {sfPreviousTxnID, soeOPTIONAL},  // emulate027
-        {sfLastLedgerSequence, soeOPTIONAL},
-        {sfAccountTxnID, soeOPTIONAL},
-        {sfFee, soeREQUIRED},
-        {sfOperationLimit, soeOPTIONAL},
-        {sfMemos, soeOPTIONAL},
-        {sfSigningPubKey, soeREQUIRED},
-        {sfTxnSignature, soeOPTIONAL},
-        {sfSigners, soeOPTIONAL},  // submit_multisigned
-    };
+typedef std::initializer_list<ripple::SOElement> (*getTxFormatPtr)();
+typedef char const* (*getTxNamePtr)();
+struct TxFormatsWrapper {
+    char const* name;
+    TxType type;
+    std::initializer_list<SOElement> uniqueFields;
+    std::initializer_list<SOElement> commonFields;
+};
 
-    add(jss::AccountSet,
+const std::initializer_list<SOElement> commonFields{
+    {sfTransactionType, soeREQUIRED},
+    {sfFlags, soeOPTIONAL},
+    {sfSourceTag, soeOPTIONAL},
+    {sfAccount, soeREQUIRED},
+    {sfSequence, soeREQUIRED},
+    {sfPreviousTxnID, soeOPTIONAL},  // emulate027
+    {sfLastLedgerSequence, soeOPTIONAL},
+    {sfAccountTxnID, soeOPTIONAL},
+    {sfFee, soeREQUIRED},
+    {sfOperationLimit, soeOPTIONAL},
+    {sfMemos, soeOPTIONAL},
+    {sfSigningPubKey, soeREQUIRED},
+    {sfTxnSignature, soeOPTIONAL},
+    {sfSigners, soeOPTIONAL},  // submit_multisigned
+};
+
+std::list<TxFormatsWrapper> txFormatsList{
+    {
+        jss::AccountSet,
         ttACCOUNT_SET,
         {
             {sfEmailHash, soeOPTIONAL},
@@ -57,19 +67,18 @@ TxFormats::TxFormats()
             {sfTicketSequence, soeOPTIONAL},
             {sfNFTokenMinter, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::TrustSet,
-        ttTRUST_SET,
-        {
-            {sfLimitAmount, soeOPTIONAL},
-            {sfQualityIn, soeOPTIONAL},
-            {sfQualityOut, soeOPTIONAL},
-            {sfTicketSequence, soeOPTIONAL},
-        },
-        commonFields);
-
-    add(jss::OfferCreate,
+        commonFields},
+    // {
+    //     jss::TrustSet,
+    //     ttTRUST_SET,
+    //     {
+    //         {sfLimitAmount, soeOPTIONAL},
+    //         {sfQualityIn, soeOPTIONAL},
+    //         {sfQualityOut, soeOPTIONAL},
+    //         {sfTicketSequence, soeOPTIONAL},
+    //     },
+    //     commonFields},
+    {jss::OfferCreate,
         ttOFFER_CREATE,
         {
             {sfTakerPays, soeREQUIRED},
@@ -78,25 +87,25 @@ TxFormats::TxFormats()
             {sfOfferSequence, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::OfferCancel,
+        commonFields},
+    {
+        jss::OfferCancel,
         ttOFFER_CANCEL,
         {
             {sfOfferSequence, soeREQUIRED},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::SetRegularKey,
+        commonFields},
+    {
+        jss::SetRegularKey,
         ttREGULAR_KEY_SET,
         {
             {sfRegularKey, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::Payment,
+        commonFields},
+    {
+        jss::Payment,
         ttPAYMENT,
         {
             {sfDestination, soeREQUIRED},
@@ -108,9 +117,9 @@ TxFormats::TxFormats()
             {sfDeliverMin, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::EscrowCreate,
+        commonFields},
+    {
+        jss::EscrowCreate,
         ttESCROW_CREATE,
         {
             {sfDestination, soeREQUIRED},
@@ -121,9 +130,9 @@ TxFormats::TxFormats()
             {sfDestinationTag, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::EscrowFinish,
+        commonFields},
+    {
+        jss::EscrowFinish,
         ttESCROW_FINISH,
         {
             {sfOwner, soeREQUIRED},
@@ -132,26 +141,26 @@ TxFormats::TxFormats()
             {sfCondition, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::EscrowCancel,
+        commonFields},
+    {
+        jss::EscrowCancel,
         ttESCROW_CANCEL,
         {
             {sfOwner, soeREQUIRED},
             {sfOfferSequence, soeREQUIRED},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::EnableAmendment,
+        commonFields},
+    {
+        jss::EnableAmendment,
         ttAMENDMENT,
         {
             {sfLedgerSequence, soeREQUIRED},
             {sfAmendment, soeREQUIRED},
         },
-        commonFields);
-
-    add(jss::SetFee,
+        commonFields},
+    {
+        jss::SetFee,
         ttFEE,
         {
             {sfLedgerSequence, soeOPTIONAL},
@@ -165,37 +174,38 @@ TxFormats::TxFormats()
             {sfReserveBaseDrops, soeOPTIONAL},
             {sfReserveIncrementDrops, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::UNLModify,
+        commonFields},
+    {
+        jss::UNLModify,
         ttUNL_MODIFY,
         {
             {sfUNLModifyDisabling, soeREQUIRED},
             {sfLedgerSequence, soeREQUIRED},
             {sfUNLModifyValidator, soeREQUIRED},
         },
-        commonFields);
-
-    add(jss::TicketCreate,
+        commonFields},
+    {
+        jss::TicketCreate,
         ttTICKET_CREATE,
         {
             {sfTicketCount, soeREQUIRED},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
+        commonFields},
 
     // The SignerEntries are optional because a SignerList is deleted by
     // setting the SignerQuorum to zero and omitting SignerEntries.
-    add(jss::SignerListSet,
+    {
+        jss::SignerListSet,
         ttSIGNER_LIST_SET,
         {
             {sfSignerQuorum, soeREQUIRED},
             {sfSignerEntries, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::PaymentChannelCreate,
+        commonFields},
+    {
+        jss::PaymentChannelCreate,
         ttPAYCHAN_CREATE,
         {
             {sfDestination, soeREQUIRED},
@@ -206,9 +216,9 @@ TxFormats::TxFormats()
             {sfDestinationTag, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::PaymentChannelFund,
+        commonFields},
+    {
+        jss::PaymentChannelFund,
         ttPAYCHAN_FUND,
         {
             {sfChannel, soeREQUIRED},
@@ -216,9 +226,9 @@ TxFormats::TxFormats()
             {sfExpiration, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::PaymentChannelClaim,
+        commonFields},
+    {
+        jss::PaymentChannelClaim,
         ttPAYCHAN_CLAIM,
         {
             {sfChannel, soeREQUIRED},
@@ -228,9 +238,9 @@ TxFormats::TxFormats()
             {sfPublicKey, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::CheckCreate,
+        commonFields},
+    {
+        jss::CheckCreate,
         ttCHECK_CREATE,
         {
             {sfDestination, soeREQUIRED},
@@ -240,9 +250,9 @@ TxFormats::TxFormats()
             {sfInvoiceID, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::CheckCash,
+        commonFields},
+    {
+        jss::CheckCash,
         ttCHECK_CASH,
         {
             {sfCheckID, soeREQUIRED},
@@ -250,35 +260,35 @@ TxFormats::TxFormats()
             {sfDeliverMin, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::CheckCancel,
+        commonFields},
+    {
+        jss::CheckCancel,
         ttCHECK_CANCEL,
         {
             {sfCheckID, soeREQUIRED},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::AccountDelete,
+        commonFields},
+    {
+        jss::AccountDelete,
         ttACCOUNT_DELETE,
         {
             {sfDestination, soeREQUIRED},
             {sfDestinationTag, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::DepositPreauth,
+        commonFields},
+    {
+        jss::DepositPreauth,
         ttDEPOSIT_PREAUTH,
         {
             {sfAuthorize, soeOPTIONAL},
             {sfUnauthorize, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::NFTokenMint,
+        commonFields},
+    {
+        jss::NFTokenMint,
         ttNFTOKEN_MINT,
         {
             {sfNFTokenTaxon, soeREQUIRED},
@@ -287,18 +297,18 @@ TxFormats::TxFormats()
             {sfURI, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::NFTokenBurn,
+        commonFields},
+    {
+        jss::NFTokenBurn,
         ttNFTOKEN_BURN,
         {
             {sfNFTokenID, soeREQUIRED},
             {sfOwner, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::NFTokenCreateOffer,
+        commonFields},
+    {
+        jss::NFTokenCreateOffer,
         ttNFTOKEN_CREATE_OFFER,
         {
             {sfNFTokenID, soeREQUIRED},
@@ -308,17 +318,17 @@ TxFormats::TxFormats()
             {sfExpiration, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::NFTokenCancelOffer,
+        commonFields},
+    {
+        jss::NFTokenCancelOffer,
         ttNFTOKEN_CANCEL_OFFER,
         {
             {sfNFTokenOffers, soeREQUIRED},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::NFTokenAcceptOffer,
+        commonFields},
+    {
+        jss::NFTokenAcceptOffer,
         ttNFTOKEN_ACCEPT_OFFER,
         {
             {sfNFTokenBuyOffer, soeOPTIONAL},
@@ -326,16 +336,37 @@ TxFormats::TxFormats()
             {sfNFTokenBrokerFee, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-
-    add(jss::DummyTx,
+        commonFields},
+    {
+        jss::DummyTx,
         ttDUMMY_TX,
         {
             {sfRegularKey, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
         },
-        commonFields);
-    
+        commonFields},
+};
+
+void
+addToTxFormats(TxType type, std::string pathToLib)
+{
+    void* handle = dlopen(pathToLib.c_str(), RTLD_LAZY);
+    auto const name = ((getTxNamePtr)dlsym(handle, "getTxName"))();
+    auto const uniqueFields = ((getTxFormatPtr)dlsym(handle, "getTxFormat"))();
+    // txFormatsList.push_back({
+    //     name,
+    //     type,
+    //     uniqueFields,
+    //     commonFields});
+}
+
+TxFormats::TxFormats()
+{
+    // Fields shared by all txFormats:
+    for (auto &e: txFormatsList)
+    {
+        add(e.name, e.type, e.uniqueFields, e.commonFields);
+    }
 }
 
 TxFormats const&
