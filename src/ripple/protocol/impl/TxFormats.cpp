@@ -20,16 +20,22 @@
 #include <ripple/protocol/TxFormats.h>
 #include <ripple/protocol/jss.h>
 #include <list>
+#include <map>
 #include <dlfcn.h>
 
 namespace ripple {
 
-typedef std::initializer_list<ripple::SOElement> (*getTxFormatPtr)();
+struct FakeSOElement {
+    int fieldCode;
+    ripple::SOEStyle style;
+};
+
+typedef std::vector<FakeSOElement> (*getTxFormatPtr)();
 typedef char const* (*getTxNamePtr)();
 struct TxFormatsWrapper {
     char const* name;
     TxType type;
-    std::initializer_list<SOElement> uniqueFields;
+    std::vector<SOElement> uniqueFields;
     std::initializer_list<SOElement> commonFields;
 };
 
@@ -50,7 +56,7 @@ const std::initializer_list<SOElement> commonFields{
     {sfSigners, soeOPTIONAL},  // submit_multisigned
 };
 
-std::list<TxFormatsWrapper> txFormatsList{
+std::initializer_list<TxFormatsWrapper> txFormatsList{
     {
         jss::AccountSet,
         ttACCOUNT_SET,
@@ -347,17 +353,30 @@ std::list<TxFormatsWrapper> txFormatsList{
         commonFields},
 };
 
+std::vector<TxFormatsWrapper> txFormatsList2{};
+
+std::vector<SOElement>
+convertToUniqueFields(std::vector<FakeSOElement> txFormat)
+{
+    std::vector<SOElement> uniqueFields;
+    for (auto &param : txFormat)
+    {
+        uniqueFields.push_back({SField::getField(param.fieldCode), param.style});
+    }
+    return uniqueFields;
+}
+
 void
 addToTxFormats(TxType type, std::string pathToLib)
 {
     void* handle = dlopen(pathToLib.c_str(), RTLD_LAZY);
     auto const name = ((getTxNamePtr)dlsym(handle, "getTxName"))();
-    auto const uniqueFields = ((getTxFormatPtr)dlsym(handle, "getTxFormat"))();
-    // txFormatsList.push_back({
-    //     name,
-    //     type,
-    //     uniqueFields,
-    //     commonFields});
+    auto const txFormat = ((getTxFormatPtr)dlsym(handle, "getTxFormat"))();
+    txFormatsList2.push_back({
+        name,
+        type,
+        convertToUniqueFields(txFormat),
+        commonFields});
 }
 
 TxFormats::TxFormats()
@@ -365,7 +384,17 @@ TxFormats::TxFormats()
     // Fields shared by all txFormats:
     for (auto &e: txFormatsList)
     {
-        add(e.name, e.type, e.uniqueFields, e.commonFields);
+        std::vector<SOElement> uniqueFields(e.uniqueFields);
+        add(e.name, e.type, uniqueFields, e.commonFields);
+    }
+    for (auto &e: txFormatsList2)
+    {
+        try {
+
+            add(e.name, e.type, e.uniqueFields, e.commonFields);
+        } catch (std::runtime_error &) {
+            
+        }
     }
 }
 

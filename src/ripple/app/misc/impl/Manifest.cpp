@@ -55,7 +55,7 @@ deserializeManifest(Slice s)
     if (s.empty())
         return std::nullopt;
 
-    static SOTemplate const manifestFormat{
+    std::vector<SOElement> uniqueFields{
         // A manifest must include:
         // - the master public key
         {sfPublicKey, soeREQUIRED},
@@ -79,6 +79,7 @@ deserializeManifest(Slice s)
         // - a signature using the ephemeral signing key, if it is present
         {sfSignature, soeOPTIONAL},
     };
+    static SOTemplate const manifestFormat(uniqueFields);
 
     try
     {

@@ -102,6 +102,9 @@
         "memory_resource": "cpp",
         "utility": "cpp",
         "stop_token": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "*.inc": "cpp",
+        "hash_map": "cpp",
+        "hash_set": "cpp"
     }
 }
