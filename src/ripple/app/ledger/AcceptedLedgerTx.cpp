@@ -54,7 +54,7 @@ AcceptedLedgerTx::AcceptedLedgerTx(
             affected.append(toBase58(account));
     }
 
-    if (mTxn->getTxnType() == ttOFFER_CREATE)
+    if (mTxn->getTxnType() == getTxTypeFromName("ttOFFER_CREATE"))
     {
         auto const& account = mTxn->getAccountID(sfAccount);
         auto const amount = mTxn->getFieldAmount(sfTakerGets);

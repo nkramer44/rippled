@@ -84,6 +84,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
+#include <dlfcn.h>
 #include <iostream>
 #include <limits>
 #include <mutex>
@@ -93,6 +94,8 @@
 #include <variant>
 
 namespace ripple {
+
+typedef std::uint16_t (*getTxTypePtr)();
 
 // VFALCO TODO Move the function definitions into the class declaration
 class ApplicationImp : public Application, public BasicApp
@@ -1115,10 +1118,13 @@ private:
 //------------------------------------------------------------------------------
 
 void
-addPluginTransactor(TxType type, std::string libPath)
+addPluginTransactor(std::string libPath)
 {
-    addToTransactorMap(type, libPath);
+    void* handle = dlopen(libPath.c_str(), RTLD_LAZY);
+    auto const type = ((getTxTypePtr)dlsym(handle, "getTxType"))();
+    addToTxTypes(libPath);
     addToTxFormats(type, libPath);
+    addToTransactorMap(type, libPath);
 }
 
 // TODO Break this up into smaller, more digestible initialization segments.
@@ -1148,8 +1154,8 @@ ApplicationImp::setup(boost::program_options::variables_map const& cmdline)
         });
 
     // Add plugin transactors
-    // addPluginTransactor(ttDUMMY_TX, "/Users/mvadari/Documents/plugin_transactor/python/libdummy_tx.dylib");
-    addPluginTransactor(ttTRUST_SET, "/Users/mvadari/Documents/plugin_transactor/cpp/build/libplugin_transactor.dylib");
+    // addPluginTransactor("/Users/mvadari/Documents/plugin_transactor/python/libdummy_tx.dylib");
+    addPluginTransactor("/Users/mvadari/Documents/plugin_transactor/cpp/build/libplugin_transactor.dylib");
 
     auto debug_log = config_->getDebugLogFile();
 

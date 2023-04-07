@@ -3054,7 +3054,7 @@ NetworkOPsImp::transJson(
     jvObj[jss::engine_result_code] = result;
     jvObj[jss::engine_result_message] = sHuman;
 
-    if (transaction.getTxnType() == ttOFFER_CREATE)
+    if (transaction.getTxnType() == getTxTypeFromName("ttOFFER_CREATE"))
     {
         auto const account = transaction.getAccountID(sfAccount);
         auto const amount = transaction.getFieldAmount(sfTakerGets);

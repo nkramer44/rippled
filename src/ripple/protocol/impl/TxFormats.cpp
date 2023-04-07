@@ -32,12 +32,68 @@ struct FakeSOElement {
 
 typedef std::vector<FakeSOElement> (*getTxFormatPtr)();
 typedef char const* (*getTxNamePtr)();
+typedef std::uint16_t (*getTxTypePtr)();
+typedef std::string (*getTTNamePtr)();
+
 struct TxFormatsWrapper {
     char const* name;
-    TxType type;
+    std::uint16_t type;
     std::vector<SOElement> uniqueFields;
     std::initializer_list<SOElement> commonFields;
 };
+
+std::map<std::string, std::uint16_t> txTypes{
+    {"ttPAYMENT", 0},
+    {"ttESCROW_CREATE", 1},
+    {"ttESCROW_FINISH", 2},
+    {"ttACCOUNT_SET", 3},
+    {"ttESCROW_CANCEL", 4},
+    {"ttREGULAR_KEY_SET", 5},
+    {"ttOFFER_CREATE", 7},
+    {"ttOFFER_CANCEL", 8},
+    {"ttTICKET_CREATE", 10},
+    {"ttSIGNER_LIST_SET", 12},
+    {"ttPAYCHAN_CREATE", 13},
+    {"ttPAYCHAN_FUND", 14},
+    {"ttPAYCHAN_CLAIM", 15},
+    {"ttCHECK_CREATE", 16},
+    {"ttCHECK_CASH", 17},
+    {"ttCHECK_CANCEL", 18},
+    {"ttDEPOSIT_PREAUTH", 19},
+    // {"ttTRUST_SET", 20},
+    {"ttACCOUNT_DELETE", 21},
+    {"ttHOOK_SET", 22},
+    {"ttNFTOKEN_MINT", 25},
+    {"ttNFTOKEN_BURN", 26},
+    {"ttNFTOKEN_CREATE_OFFER", 27},
+    {"ttNFTOKEN_CANCEL_OFFER", 28},
+    {"ttNFTOKEN_ACCEPT_OFFER", 29},
+    {"ttDUMMY_TX", 30},
+    {"ttAMENDMENT", 100},
+    {"ttFEE", 101},
+    {"ttUNL_MODIFY", 102},
+};
+
+std::uint16_t
+getTxTypeFromName(std::string name)
+{
+    if (auto it = txTypes.find(name);
+        it != txTypes.end())
+    {
+        return it->second;
+    }
+    assert(false);
+    return -1;
+}
+
+void
+addToTxTypes(std::string dynamicLib)
+{
+    void* handle = dlopen(dynamicLib.c_str(), RTLD_LAZY);
+    auto const type = ((getTxTypePtr)dlsym(handle, "getTxName"))();
+    auto const ttName = ((getTTNamePtr)dlsym(handle, "getTTName"))();
+    txTypes.insert({ttName, type});
+}
 
 const std::initializer_list<SOElement> commonFields{
     {sfTransactionType, soeREQUIRED},
@@ -59,7 +115,7 @@ const std::initializer_list<SOElement> commonFields{
 std::initializer_list<TxFormatsWrapper> txFormatsList{
     {
         jss::AccountSet,
-        ttACCOUNT_SET,
+        getTxTypeFromName("ttACCOUNT_SET"),
         {
             {sfEmailHash, soeOPTIONAL},
             {sfWalletLocator, soeOPTIONAL},
@@ -76,7 +132,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     // {
     //     jss::TrustSet,
-    //     ttTRUST_SET,
+    //     getTxTypeFromName("ttTRUST_SET"),
     //     {
     //         {sfLimitAmount, soeOPTIONAL},
     //         {sfQualityIn, soeOPTIONAL},
@@ -85,7 +141,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
     //     },
     //     commonFields},
     {jss::OfferCreate,
-        ttOFFER_CREATE,
+        getTxTypeFromName("ttOFFER_CREATE"),
         {
             {sfTakerPays, soeREQUIRED},
             {sfTakerGets, soeREQUIRED},
@@ -96,7 +152,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::OfferCancel,
-        ttOFFER_CANCEL,
+        getTxTypeFromName("ttOFFER_CANCEL"),
         {
             {sfOfferSequence, soeREQUIRED},
             {sfTicketSequence, soeOPTIONAL},
@@ -104,7 +160,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::SetRegularKey,
-        ttREGULAR_KEY_SET,
+        getTxTypeFromName("ttREGULAR_KEY_SET"),
         {
             {sfRegularKey, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
@@ -112,7 +168,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::Payment,
-        ttPAYMENT,
+        getTxTypeFromName("ttPAYMENT"),
         {
             {sfDestination, soeREQUIRED},
             {sfAmount, soeREQUIRED},
@@ -126,7 +182,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::EscrowCreate,
-        ttESCROW_CREATE,
+        getTxTypeFromName("ttESCROW_CREATE"),
         {
             {sfDestination, soeREQUIRED},
             {sfAmount, soeREQUIRED},
@@ -139,7 +195,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::EscrowFinish,
-        ttESCROW_FINISH,
+        getTxTypeFromName("ttESCROW_FINISH"),
         {
             {sfOwner, soeREQUIRED},
             {sfOfferSequence, soeREQUIRED},
@@ -150,7 +206,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::EscrowCancel,
-        ttESCROW_CANCEL,
+        getTxTypeFromName("ttESCROW_CANCEL"),
         {
             {sfOwner, soeREQUIRED},
             {sfOfferSequence, soeREQUIRED},
@@ -159,7 +215,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::EnableAmendment,
-        ttAMENDMENT,
+        getTxTypeFromName("ttAMENDMENT"),
         {
             {sfLedgerSequence, soeREQUIRED},
             {sfAmendment, soeREQUIRED},
@@ -167,7 +223,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::SetFee,
-        ttFEE,
+        getTxTypeFromName("ttFEE"),
         {
             {sfLedgerSequence, soeOPTIONAL},
             // Old version uses raw numbers
@@ -183,7 +239,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::UNLModify,
-        ttUNL_MODIFY,
+        getTxTypeFromName("ttUNL_MODIFY"),
         {
             {sfUNLModifyDisabling, soeREQUIRED},
             {sfLedgerSequence, soeREQUIRED},
@@ -192,7 +248,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::TicketCreate,
-        ttTICKET_CREATE,
+        getTxTypeFromName("ttTICKET_CREATE"),
         {
             {sfTicketCount, soeREQUIRED},
             {sfTicketSequence, soeOPTIONAL},
@@ -203,7 +259,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
     // setting the SignerQuorum to zero and omitting SignerEntries.
     {
         jss::SignerListSet,
-        ttSIGNER_LIST_SET,
+        getTxTypeFromName("ttSIGNER_LIST_SET"),
         {
             {sfSignerQuorum, soeREQUIRED},
             {sfSignerEntries, soeOPTIONAL},
@@ -212,7 +268,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::PaymentChannelCreate,
-        ttPAYCHAN_CREATE,
+        getTxTypeFromName("ttPAYCHAN_CREATE"),
         {
             {sfDestination, soeREQUIRED},
             {sfAmount, soeREQUIRED},
@@ -225,7 +281,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::PaymentChannelFund,
-        ttPAYCHAN_FUND,
+        getTxTypeFromName("ttPAYCHAN_FUND"),
         {
             {sfChannel, soeREQUIRED},
             {sfAmount, soeREQUIRED},
@@ -235,7 +291,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::PaymentChannelClaim,
-        ttPAYCHAN_CLAIM,
+        getTxTypeFromName("ttPAYCHAN_CLAIM"),
         {
             {sfChannel, soeREQUIRED},
             {sfAmount, soeOPTIONAL},
@@ -247,7 +303,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::CheckCreate,
-        ttCHECK_CREATE,
+        getTxTypeFromName("ttCHECK_CREATE"),
         {
             {sfDestination, soeREQUIRED},
             {sfSendMax, soeREQUIRED},
@@ -259,7 +315,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::CheckCash,
-        ttCHECK_CASH,
+        getTxTypeFromName("ttCHECK_CASH"),
         {
             {sfCheckID, soeREQUIRED},
             {sfAmount, soeOPTIONAL},
@@ -269,7 +325,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::CheckCancel,
-        ttCHECK_CANCEL,
+        getTxTypeFromName("ttCHECK_CANCEL"),
         {
             {sfCheckID, soeREQUIRED},
             {sfTicketSequence, soeOPTIONAL},
@@ -277,7 +333,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::AccountDelete,
-        ttACCOUNT_DELETE,
+        getTxTypeFromName("ttACCOUNT_DELETE"),
         {
             {sfDestination, soeREQUIRED},
             {sfDestinationTag, soeOPTIONAL},
@@ -286,7 +342,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::DepositPreauth,
-        ttDEPOSIT_PREAUTH,
+        getTxTypeFromName("ttDEPOSIT_PREAUTH"),
         {
             {sfAuthorize, soeOPTIONAL},
             {sfUnauthorize, soeOPTIONAL},
@@ -295,7 +351,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::NFTokenMint,
-        ttNFTOKEN_MINT,
+        getTxTypeFromName("ttNFTOKEN_MINT"),
         {
             {sfNFTokenTaxon, soeREQUIRED},
             {sfTransferFee, soeOPTIONAL},
@@ -306,7 +362,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::NFTokenBurn,
-        ttNFTOKEN_BURN,
+        getTxTypeFromName("ttNFTOKEN_BURN"),
         {
             {sfNFTokenID, soeREQUIRED},
             {sfOwner, soeOPTIONAL},
@@ -315,7 +371,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::NFTokenCreateOffer,
-        ttNFTOKEN_CREATE_OFFER,
+        getTxTypeFromName("ttNFTOKEN_CREATE_OFFER"),
         {
             {sfNFTokenID, soeREQUIRED},
             {sfAmount, soeREQUIRED},
@@ -327,7 +383,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::NFTokenCancelOffer,
-        ttNFTOKEN_CANCEL_OFFER,
+        getTxTypeFromName("ttNFTOKEN_CANCEL_OFFER"),
         {
             {sfNFTokenOffers, soeREQUIRED},
             {sfTicketSequence, soeOPTIONAL},
@@ -335,7 +391,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::NFTokenAcceptOffer,
-        ttNFTOKEN_ACCEPT_OFFER,
+        getTxTypeFromName("ttNFTOKEN_ACCEPT_OFFER"),
         {
             {sfNFTokenBuyOffer, soeOPTIONAL},
             {sfNFTokenSellOffer, soeOPTIONAL},
@@ -345,7 +401,7 @@ std::initializer_list<TxFormatsWrapper> txFormatsList{
         commonFields},
     {
         jss::DummyTx,
-        ttDUMMY_TX,
+        getTxTypeFromName("ttDUMMY_TX"),
         {
             {sfRegularKey, soeOPTIONAL},
             {sfTicketSequence, soeOPTIONAL},
@@ -367,9 +423,9 @@ convertToUniqueFields(std::vector<FakeSOElement> txFormat)
 }
 
 void
-addToTxFormats(TxType type, std::string pathToLib)
+addToTxFormats(std::uint16_t type, std::string dynamicLib)
 {
-    void* handle = dlopen(pathToLib.c_str(), RTLD_LAZY);
+    void* handle = dlopen(dynamicLib.c_str(), RTLD_LAZY);
     auto const name = ((getTxNamePtr)dlsym(handle, "getTxName"))();
     auto const txFormat = ((getTxFormatPtr)dlsym(handle, "getTxFormat"))();
     txFormatsList2.push_back({

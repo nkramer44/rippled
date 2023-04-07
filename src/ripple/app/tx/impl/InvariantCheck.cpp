@@ -320,7 +320,7 @@ AccountRootsNotDeleted::finalize(
     ReadView const&,
     beast::Journal const& j)
 {
-    if (tx.getTxnType() == ttACCOUNT_DELETE && result == tesSUCCESS)
+    if (tx.getTxnType() == getTxTypeFromName("ttACCOUNT_DELETE") && result == tesSUCCESS)
     {
         if (accountsDeleted_ == 1)
             return true;
@@ -472,7 +472,7 @@ ValidNewAccountRoot::finalize(
     }
 
     // From this point on we know exactly one account was created.
-    if (tx.getTxnType() == ttPAYMENT && result == tesSUCCESS)
+    if (tx.getTxnType() == getTxTypeFromName("ttPAYMENT") && result == tesSUCCESS)
     {
         std::uint32_t const startingSeq{
             view.rules().enabled(featureDeletableAccounts) ? view.seq() : 1};
@@ -639,8 +639,8 @@ NFTokenCountTracking::finalize(
     ReadView const& view,
     beast::Journal const& j)
 {
-    if (TxType const txType = tx.getTxnType();
-        txType != ttNFTOKEN_MINT && txType != ttNFTOKEN_BURN)
+    if (auto const txType = tx.getTxnType();
+        txType != getTxTypeFromName("ttNFTOKEN_MINT") && txType != getTxTypeFromName("ttNFTOKEN_BURN"))
     {
         if (beforeMintedTotal != afterMintedTotal)
         {
@@ -659,7 +659,7 @@ NFTokenCountTracking::finalize(
         return true;
     }
 
-    if (tx.getTxnType() == ttNFTOKEN_MINT)
+    if (tx.getTxnType() == getTxTypeFromName("ttNFTOKEN_MINT"))
     {
         if (result == tesSUCCESS && beforeMintedTotal >= afterMintedTotal)
         {
@@ -685,7 +685,7 @@ NFTokenCountTracking::finalize(
         }
     }
 
-    if (tx.getTxnType() == ttNFTOKEN_BURN)
+    if (tx.getTxnType() == getTxTypeFromName("ttNFTOKEN_BURN"))
     {
         if (result == tesSUCCESS)
         {

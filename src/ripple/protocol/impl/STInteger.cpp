@@ -108,7 +108,7 @@ STUInt16::getText() const
     if (getFName() == sfTransactionType)
     {
         auto item =
-            TxFormats::getInstance().findByType(safe_cast<TxType>(value_));
+            TxFormats::getInstance().findByType(safe_cast<std::uint16_t>(value_));
 
         if (item != nullptr)
             return item->getName();
@@ -132,7 +132,7 @@ Json::Value STUInt16::getJson(JsonOptions) const
     if (getFName() == sfTransactionType)
     {
         auto item =
-            TxFormats::getInstance().findByType(safe_cast<TxType>(value_));
+            TxFormats::getInstance().findByType(safe_cast<std::uint16_t>(value_));
 
         if (item != nullptr)
             return item->getName();

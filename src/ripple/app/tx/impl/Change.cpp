@@ -67,7 +67,7 @@ Change::preflight(PreflightContext const& ctx)
         return temBAD_SEQUENCE;
     }
 
-    if (ctx.tx.getTxnType() == ttUNL_MODIFY &&
+    if (ctx.tx.getTxnType() == getTxTypeFromName("ttUNL_MODIFY") &&
         !ctx.rules.enabled(featureNegativeUNL))
     {
         JLOG(ctx.j.warn()) << "Change: NegativeUNL not enabled";
@@ -90,7 +90,7 @@ Change::preclaim(PreclaimContext const& ctx)
 
     switch (ctx.tx.getTxnType())
     {
-        case ttFEE:
+        case 101:  // ttFEE
             if (ctx.view.rules().enabled(featureXRPFees))
             {
                 // The ttFEE transaction format defines these fields as
@@ -129,8 +129,8 @@ Change::preclaim(PreclaimContext const& ctx)
                     return temDISABLED;
             }
             return tesSUCCESS;
-        case ttAMENDMENT:
-        case ttUNL_MODIFY:
+        case 100:  // ttAMENDMENT
+        case 102:  // ttUNL_MODIFY
             return tesSUCCESS;
         default:
             return temUNKNOWN;
@@ -142,11 +142,11 @@ Change::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBal
 {
     switch (ctx.tx.getTxnType())
     {
-        case ttAMENDMENT:
+        case 100:  // ttAMENDMENT
             return applyAmendment(ctx, mPriorBalance, mSourceBalance);
-        case ttFEE:
+        case 101:  // ttFEE
             return applyFee(ctx, mPriorBalance, mSourceBalance);
-        case ttUNL_MODIFY:
+        case 102:  // ttUNL_MODIFY
             return applyUNLModify(ctx, mPriorBalance, mSourceBalance);
         default:
             assert(0);

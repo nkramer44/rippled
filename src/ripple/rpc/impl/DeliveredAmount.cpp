@@ -94,11 +94,11 @@ canHaveDeliveredAmountHelp(
         return false;
 
     {
-        TxType const tt{serializedTx->getTxnType()};
-        if (tt != ttPAYMENT && tt != ttCHECK_CASH && tt != ttACCOUNT_DELETE)
+        std::uint16_t const tt{serializedTx->getTxnType()};
+        if (tt != getTxTypeFromName("ttPAYMENT") && tt != getTxTypeFromName("ttCHECK_CASH") && tt != getTxTypeFromName("ttACCOUNT_DELETE"))
             return false;
 
-        if (tt == ttCHECK_CASH && !getFix1623Enabled())
+        if (tt == getTxTypeFromName("ttCHECK_CASH") && !getFix1623Enabled())
             return false;
     }
 

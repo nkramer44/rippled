@@ -131,7 +131,7 @@ fillJsonTx(
         if (stMeta)
         {
             txJson[jss::metaData] = stMeta->getJson(JsonOptions::none);
-            if (txnType == ttPAYMENT || txnType == ttCHECK_CASH)
+            if (txnType == getTxTypeFromName("ttPAYMENT") || txnType == getTxTypeFromName("ttCHECK_CASH"))
             {
                 // Insert delivered amount
                 auto txMeta = std::make_shared<TxMeta>(
@@ -143,7 +143,7 @@ fillJsonTx(
     }
 
     if ((fill.options & LedgerFill::ownerFunds) &&
-        txn->getTxnType() == ttOFFER_CREATE)
+        txn->getTxnType() == getTxTypeFromName("ttOFFER_CREATE"))
     {
         auto const account = txn->getAccountID(sfAccount);
         auto const amount = txn->getFieldAmount(sfTakerGets);

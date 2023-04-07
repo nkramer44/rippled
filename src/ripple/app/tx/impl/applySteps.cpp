@@ -90,38 +90,38 @@ transactor_helper(std::string pathToLib)
     };
 };
 
-std::map<TxType, TransactorWrapper> transactorMap{
-    {ttACCOUNT_DELETE, transactor_helper<DeleteAccount>()},
-    {ttACCOUNT_SET, transactor_helper<SetAccount>()},
-    {ttCHECK_CANCEL, transactor_helper<CancelCheck>()},
-    {ttCHECK_CASH, transactor_helper<CashCheck>()},
-    {ttCHECK_CREATE, transactor_helper<CreateCheck>()},
-    {ttDEPOSIT_PREAUTH, transactor_helper<DepositPreauth>()},
-    {ttOFFER_CANCEL, transactor_helper<CancelOffer>()},
-    {ttOFFER_CREATE, transactor_helper<CreateOffer>()},
-    {ttESCROW_CREATE, transactor_helper<EscrowCreate>()},
-    {ttESCROW_FINISH, transactor_helper<EscrowFinish>()},
-    {ttESCROW_CANCEL, transactor_helper<EscrowCancel>()},
-    {ttPAYCHAN_CLAIM, transactor_helper<PayChanClaim>()},
-    {ttPAYCHAN_CREATE, transactor_helper<PayChanCreate>()},
-    {ttPAYCHAN_FUND, transactor_helper<PayChanFund>()},
-    {ttPAYMENT, transactor_helper<Payment>()},
-    {ttREGULAR_KEY_SET, transactor_helper<SetRegularKey>()},
-    {ttSIGNER_LIST_SET, transactor_helper<SetSignerList>()},
-    {ttTICKET_CREATE, transactor_helper<CreateTicket>()},
-    // {ttTRUST_SET, transactor_helper<TrustSet>()},
-    {ttAMENDMENT, transactor_helper<Change>()},
-    {ttFEE, transactor_helper<Change>()},
-    {ttUNL_MODIFY, transactor_helper<Change>()},
-    {ttNFTOKEN_MINT, transactor_helper<NFTokenMint>()},
-    {ttNFTOKEN_BURN, transactor_helper<NFTokenBurn>()},
-    {ttNFTOKEN_CREATE_OFFER, transactor_helper<NFTokenCreateOffer>()},
-    {ttNFTOKEN_CANCEL_OFFER, transactor_helper<NFTokenCancelOffer>()},
-    {ttNFTOKEN_ACCEPT_OFFER, transactor_helper<NFTokenAcceptOffer>()},
+std::map<std::uint16_t, TransactorWrapper> transactorMap{
+    {0, transactor_helper<Payment>()},
+    {1, transactor_helper<EscrowCreate>()},
+    {2, transactor_helper<EscrowFinish>()},
+    {3, transactor_helper<SetAccount>()},
+    {4, transactor_helper<EscrowCancel>()},
+    {5, transactor_helper<SetRegularKey>()},
+    {7, transactor_helper<CreateOffer>()},
+    {8, transactor_helper<CancelOffer>()},
+    {10, transactor_helper<CreateTicket>()},
+    {12, transactor_helper<SetSignerList>()},
+    {13, transactor_helper<PayChanCreate>()},
+    {14, transactor_helper<PayChanFund>()},
+    {15, transactor_helper<PayChanClaim>()},
+    {16, transactor_helper<CreateCheck>()},
+    {17, transactor_helper<CashCheck>()},
+    {18, transactor_helper<CancelCheck>()},
+    {19, transactor_helper<DepositPreauth>()},
+    // {20, transactor_helper<TrustSet>()},
+    {21, transactor_helper<DeleteAccount>()},
+    {25, transactor_helper<NFTokenMint>()},
+    {26, transactor_helper<NFTokenBurn>()},
+    {27, transactor_helper<NFTokenCreateOffer>()},
+    {28, transactor_helper<NFTokenCancelOffer>()},
+    {29, transactor_helper<NFTokenAcceptOffer>()},
+    {100, transactor_helper<Change>()},
+    {101, transactor_helper<Change>()},
+    {102, transactor_helper<Change>()},
 };
 
 void
-addToTransactorMap(TxType type, std::string dynamicLib)
+addToTransactorMap(std::uint16_t type, std::string dynamicLib)
 {
     transactorMap.insert({ type, transactor_helper(dynamicLib) });
 }

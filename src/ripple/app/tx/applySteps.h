@@ -31,7 +31,7 @@ class STTx;
 class TxQ;
 
 void
-addToTransactorMap(TxType type, std::string dynamicLib);
+addToTransactorMap(std::uint16_t type, std::string dynamicLib);
 
 /** Return true if the transaction can claim a fee (tec),
     and the `ApplyFlags` do not allow soft failures.

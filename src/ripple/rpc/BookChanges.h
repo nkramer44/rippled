@@ -59,8 +59,8 @@ computeBookChanges(std::shared_ptr<L const> const& lpAccepted)
         uint16_t tt = tx.first->getFieldU16(sfTransactionType);
         switch (tt)
         {
-            case ttOFFER_CANCEL:
-            case ttOFFER_CREATE: {
+            case 8: // ttOFFER_CANCEL
+            case 7:  /* ttOFFER_CREATE */{
                 if (tx.first->isFieldPresent(sfOfferSequence))
                     offerCancel = tx.first->getFieldU32(sfOfferSequence);
                 break;
