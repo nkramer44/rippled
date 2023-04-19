@@ -395,6 +395,10 @@ public:
         return Json::Value{code_};
     }
 
+    constexpr TERUnderlyingType get_value() const {
+        return code_;
+    }
+
     // Streaming operator.
     friend std::ostream&
     operator<<(std::ostream& os, TERSubset const& rhs)
