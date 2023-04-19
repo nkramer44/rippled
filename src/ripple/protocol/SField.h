@@ -135,12 +135,12 @@ public:
     IsSigning const signingField;
     Json::StaticString const jsonName;
 
-    SField(SField const&) = delete;
-    SField&
-    operator=(SField const&) = delete;
-    SField(SField&&) = delete;
-    SField&
-    operator=(SField&&) = delete;
+    // SField(SField const&) = delete;
+    // SField&
+    // operator=(SField const&) = delete;
+    // SField(SField&&) = delete;
+    // SField&
+    // operator=(SField&&) = delete;
 
 public:
     struct private_access_tag_t;  // public, but still an implementation detail
@@ -148,7 +148,7 @@ public:
     // These constructors can only be called from SField.cpp
     SField(
         private_access_tag_t,
-        SerializedTypeID tid,
+        int tid,
         int fv,
         const char* fn,
         int meta = sMD_Default,
@@ -261,9 +261,10 @@ public:
     static int
     compare(const SField& f1, const SField& f2);
 
+    static std::map<int, SField const*> knownCodeToField;
+
 private:
     static int num;
-    static std::map<int, SField const*> knownCodeToField;
 };
 
 /** A field with a type known at compile time. */
@@ -280,6 +281,22 @@ struct TypedField : SField
     TypedField(TypedField&& u) : SField(std::move(u))
     {
     }
+};
+
+struct SFieldInfo {
+    int typeId;
+    int fieldValue;
+    const char * txtName;
+};
+
+void
+registerSField(SFieldInfo const& sfield);
+
+// TODO: moved from SField.cpp
+// Give only this translation unit permission to construct SFields
+struct SField::private_access_tag_t
+{
+    explicit private_access_tag_t() = default;
 };
 
 /** Indicate std::optional field semantics. */

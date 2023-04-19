@@ -1117,11 +1117,18 @@ private:
 
 //------------------------------------------------------------------------------
 
+typedef std::vector<SFieldInfo> (*getSFieldsPtr)();
+
 void
 addPluginTransactor(std::string libPath)
 {
     void* handle = dlopen(libPath.c_str(), RTLD_LAZY);
     auto const type = ((getTxTypePtr)dlsym(handle, "getTxType"))();
+    auto const sfields = ((getSFieldsPtr)dlsym(handle, "getSFields"))();
+    for (auto const& sfield : sfields)
+    {
+        registerSField(sfield);
+    }
     addToTxTypes(libPath);
     addToTxFormats(type, libPath);
     addToTransactorMap(type, libPath);

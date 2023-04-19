@@ -445,12 +445,7 @@ TxFormats::TxFormats()
     }
     for (auto &e: txFormatsList2)
     {
-        try {
-
-            add(e.name, e.type, e.uniqueFields, e.commonFields);
-        } catch (std::runtime_error &) {
-            
-        }
+        add(e.name, e.type, e.uniqueFields, e.commonFields);
     }
 }
 
