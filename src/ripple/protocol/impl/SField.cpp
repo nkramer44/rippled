@@ -382,7 +382,7 @@ SField::SField(
     int meta,
     IsSigning signing)
     : fieldCode(field_code(tid, fv))
-    , fieldType(static_cast<SerializedTypeID>(tid))
+    , fieldType(tid)
     , fieldValue(fv)
     , fieldName(fn)
     , fieldMeta(meta)

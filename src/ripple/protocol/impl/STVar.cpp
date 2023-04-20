@@ -162,7 +162,7 @@ STVar::STVar(SerialIter& sit, SField const& name, int depth)
     }
 }
 
-STVar::STVar(SerializedTypeID id, SField const& name)
+STVar::STVar(int id, SField const& name)
 {
     assert((id == STI_NOTPRESENT) || (id == name.fieldType));
     switch (id)

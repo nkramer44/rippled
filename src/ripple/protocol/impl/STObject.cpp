@@ -69,7 +69,7 @@ STObject::move(std::size_t n, void* buf)
     return emplace(n, buf, std::move(*this));
 }
 
-SerializedTypeID
+int
 STObject::getSType() const
 {
     return STI_OBJECT;
@@ -791,7 +791,7 @@ STObject::add(Serializer& s, WhichFields whichFields) const
         // When we serialize an object inside another object,
         // the type associated by rule with this field name
         // must be OBJECT, or the object cannot be deserialized
-        SerializedTypeID const sType{field->getSType()};
+        int const sType{field->getSType()};
         assert(
             (sType != STI_OBJECT) ||
             (field->getFName().fieldType == STI_OBJECT));

@@ -127,7 +127,7 @@ public:
     static IsSigning const notSigning = IsSigning::no;
 
     int const fieldCode;               // (type<<16)|index
-    SerializedTypeID const fieldType;  // STI_*
+    int const fieldType;  // STI_*
     int const fieldValue;              // Code number for protocol
     std::string const fieldName;
     int const fieldMeta;
