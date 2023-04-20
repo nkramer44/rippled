@@ -1118,12 +1118,18 @@ private:
 //------------------------------------------------------------------------------
 
 typedef std::vector<SFieldInfo> (*getSFieldsPtr)();
+typedef std::vector<std::pair<int, createNewSFieldPtr>> (*getSTypesPtr)();
 
 void
 addPluginTransactor(std::string libPath)
 {
     void* handle = dlopen(libPath.c_str(), RTLD_LAZY);
     auto const type = ((getTxTypePtr)dlsym(handle, "getTxType"))();
+    auto const stypes = ((getSTypesPtr)dlsym(handle, "getSTypes"))();
+    for (auto const& stypePair : stypes)
+    {
+        registerSType(stypePair.first, stypePair.second);
+    }
     auto const sfields = ((getSFieldsPtr)dlsym(handle, "getSFields"))();
     for (auto const& sfield : sfields)
     {

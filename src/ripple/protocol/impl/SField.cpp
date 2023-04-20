@@ -342,6 +342,22 @@ CONSTRUCT_UNTYPED_SFIELD(sfHookGrants,          "HookGrants",           ARRAY,  
 
 // clang-format on
 
+/*
+* function pointer to create new object should be good enough??????
+
+*/
+
+std::map<int, createNewSFieldPtr> pluginSTypes {};
+
+void
+registerSType(int typeId, createNewSFieldPtr ptr)
+{
+    if (auto const it = pluginSTypes.find(typeId); it != pluginSTypes.end()) {
+        throw std::runtime_error("Code " + std::to_string(typeId) + " already exists");
+    }
+    pluginSTypes[typeId] = ptr;
+}
+
 void
 registerSField(SFieldInfo const& sfield)
 {
@@ -364,7 +380,14 @@ registerSField(SFieldInfo const& sfield)
         case STI_ACCOUNT: new SF_ACCOUNT(access, sfield.typeId, sfield.fieldValue, sfield.txtName); break;
         // case STI_OBJECT: new SF_OBJECT(access, sfield.typeId, sfield.fieldValue, sfield.txtName); break;
         // case STI_ARRAY: new SF_ARRAY(access, sfield.typeId, sfield.fieldValue, sfield.txtName); break;
-        default: throw std::runtime_error("Do not recognize type ID " + std::to_string(sfield.typeId));
+        default: {
+            if (auto const it = pluginSTypes.find(sfield.typeId); it != pluginSTypes.end()) {
+                it->second(access, sfield.typeId, sfield.fieldValue, sfield.txtName);
+            } else
+            {
+                throw std::runtime_error("Do not recognize type ID " + std::to_string(sfield.typeId));
+            }
+        }
     }
 }
 
