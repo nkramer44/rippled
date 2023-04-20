@@ -87,16 +87,16 @@ enum SerializedTypeID {
 
 // constexpr
 inline int
-field_code(SerializedTypeID id, int index)
+field_code(int id, int index)
 {
-    return (safe_cast<int>(id) << 16) | index;
+    return (id << 16) | index;
 }
 
 // constexpr
 inline int
-field_code(int id, int index)
+field_code(SerializedTypeID id, int index)
 {
-    return (id << 16) | index;
+    return field_code(safe_cast<int>(id), index);
 }
 
 /** Identifies fields.
