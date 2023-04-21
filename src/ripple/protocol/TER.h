@@ -346,8 +346,7 @@ public:
     constexpr TERSubset(TERSubset const& rhs) = default;
     constexpr TERSubset(TERSubset&& rhs) = default;
 
-private:
-    constexpr explicit TERSubset(int rhs) : code_(rhs)
+    constexpr TERSubset(int rhs) : code_(rhs)
     {
     }
 
