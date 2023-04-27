@@ -152,7 +152,7 @@ NFTokenMint::preclaim(PreclaimContext const& ctx)
 TER
 NFTokenMint::doApply()
 {
-    auto const issuer = ctx_.tx[~sfIssuer].value_or(account_);
+    /*auto const issuer = ctx_.tx[~sfIssuer].value_or(account_);
 
     auto const tokenSeq = [this, &issuer]() -> Expected<std::uint32_t, TER> {
         auto const root = view().peek(keylet::account(issuer));
@@ -220,7 +220,7 @@ NFTokenMint::doApply()
         if (auto const reserve = view().fees().accountReserve(ownerCountAfter);
             mPriorBalance < reserve)
             return tecINSUFFICIENT_RESERVE;
-    }
+    }*/
     return tesSUCCESS;
 }
 

@@ -357,6 +357,10 @@ public:
         return TERSubset(from);
     }
 
+    constexpr TERUnderlyingType getUnderlyingCode() {
+        return code_;
+    }
+
     // Trait tells enable_if which types are allowed for construction.
     template <
         typename T,

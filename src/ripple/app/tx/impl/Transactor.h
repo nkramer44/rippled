@@ -46,6 +46,14 @@ public:
 
     PreflightContext&
     operator=(PreflightContext const&) = delete;
+
+    constexpr STTx const& getTx() const {
+        return tx;
+    }
+
+    constexpr Rules const& getRules() const {
+        return rules;
+    }
 };
 
 /** State information when determining if a tx is likely to claim a fee. */
@@ -151,18 +159,6 @@ public:
         uint256 const& ticketIndex,
         beast::Journal j);
 
-protected:
-    TER
-    apply();
-
-    explicit Transactor(ApplyContext& ctx);
-
-    virtual void
-    preCompute();
-
-    virtual TER
-    doApply() = 0;
-
     /** Compute the minimum fee required to process a transaction
         with a given baseFee based on the current server load.
 
@@ -174,10 +170,22 @@ protected:
      */
     static XRPAmount
     minimumFee(
-        Application& app,
-        XRPAmount baseFee,
-        Fees const& fees,
-        ApplyFlags flags);
+            Application& app,
+            XRPAmount baseFee,
+            Fees const& fees,
+            ApplyFlags flags);
+
+protected:
+    TER
+    apply();
+
+    explicit Transactor(ApplyContext& ctx);
+
+    virtual void
+    preCompute();
+
+    virtual TER
+    doApply() = 0;
 
 private:
     std::pair<TER, XRPAmount>

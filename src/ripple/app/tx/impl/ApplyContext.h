@@ -50,10 +50,24 @@ public:
     XRPAmount const baseFee;
     beast::Journal const journal;
 
+    std::int64_t baseFeeDrops() const;
+
+    constexpr XRPAmount getBaseFee() {
+        return baseFee;
+    }
+
     ApplyView&
     view()
     {
         return *view_;
+    }
+
+    constexpr STTx const& getTx() const {
+        return tx;
+    }
+
+    constexpr Application& getApp() {
+        return app;
     }
 
     // VFALCO Unfortunately this is necessary
