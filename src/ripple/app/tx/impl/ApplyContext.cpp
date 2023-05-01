@@ -25,6 +25,8 @@
 #include <ripple/protocol/Feature.h>
 #include <ripple/protocol/Indexes.h>
 #include <cassert>
+#include "ApplyContext.h"
+
 
 namespace ripple {
 
@@ -45,6 +47,12 @@ ApplyContext::ApplyContext(
     , flags_(flags)
 {
     view_.emplace(&base_, flags_);
+}
+
+std::int64_t
+ApplyContext::baseFeeDrops() const
+{
+    return baseFee.drops();
 }
 
 void

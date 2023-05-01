@@ -588,7 +588,9 @@ STObject::getFieldH256(SField const& field) const
 AccountID
 STObject::getAccountID(SField const& field) const
 {
-    return getFieldByValue<STAccount>(field);
+    AccountID accountId = getFieldByValue<STAccount>(field);
+    std::cout << "AccountID in STObject: " << accountId << std::endl;
+    return accountId;
 }
 
 Blob

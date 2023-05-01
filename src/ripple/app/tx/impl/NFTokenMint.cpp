@@ -152,7 +152,7 @@ NFTokenMint::preclaim(PreclaimContext const& ctx)
 TER
 NFTokenMint::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSourceBalance)
 {
-    auto const issuer = ctx.tx[~sfIssuer].value_or(ctx.tx.getAccountID(sfAccount));
+    /*auto const issuer = ctx.tx[~sfIssuer].value_or(ctx.tx.getAccountID(sfAccount));
 
     auto const tokenSeq = [&issuer](ApplyContext& ctx) -> Expected<std::uint32_t, TER> {
         auto const root = ctx.view().peek(keylet::account(issuer));
@@ -220,7 +220,7 @@ NFTokenMint::doApply(ApplyContext& ctx, XRPAmount mPriorBalance, XRPAmount mSour
         if (auto const reserve = ctx.view().fees().accountReserve(ownerCountAfter);
             mPriorBalance < reserve)
             return tecINSUFFICIENT_RESERVE;
-    }
+    }*/
     return tesSUCCESS;
 }
 

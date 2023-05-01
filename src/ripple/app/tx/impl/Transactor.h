@@ -46,6 +46,14 @@ public:
 
     PreflightContext&
     operator=(PreflightContext const&) = delete;
+
+    constexpr STTx const& getTx() const {
+        return tx;
+    }
+
+    constexpr Rules const& getRules() const {
+        return rules;
+    }
 };
 
 /** State information when determining if a tx is likely to claim a fee. */
@@ -99,6 +107,12 @@ public:
     /** Process the transaction. */
     std::pair<TER, bool>
     operator()();
+
+    ApplyView&
+    view()
+    {
+        return ctx_.view();
+    }
 
     /////////////////////////////////////////////////////
     /*

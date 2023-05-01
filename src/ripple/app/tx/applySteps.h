@@ -23,6 +23,7 @@
 #include <ripple/app/tx/impl/TxConsequences.h>
 #include <ripple/beast/utility/Journal.h>
 #include <ripple/ledger/ApplyViewImpl.h>
+#include <ripple/app/tx/impl/TxConsequences.h>
 
 namespace ripple {
 

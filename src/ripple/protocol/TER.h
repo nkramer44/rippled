@@ -346,8 +346,7 @@ public:
     constexpr TERSubset(TERSubset const& rhs) = default;
     constexpr TERSubset(TERSubset&& rhs) = default;
 
-private:
-    constexpr explicit TERSubset(int rhs) : code_(rhs)
+    constexpr TERSubset(int rhs) : code_(rhs)
     {
     }
 
@@ -356,6 +355,10 @@ public:
     fromInt(int from)
     {
         return TERSubset(from);
+    }
+
+    constexpr TERUnderlyingType getUnderlyingCode() {
+        return code_;
     }
 
     // Trait tells enable_if which types are allowed for construction.
@@ -393,6 +396,10 @@ public:
     operator Json::Value() const
     {
         return Json::Value{code_};
+    }
+
+    constexpr TERUnderlyingType get_value() const {
+        return code_;
     }
 
     // Streaming operator.
