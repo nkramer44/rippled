@@ -46,6 +46,14 @@ public:
 
     PreflightContext&
     operator=(PreflightContext const&) = delete;
+
+    constexpr STTx const& getTx() const {
+        return tx;
+    }
+
+    constexpr Rules const& getRules() const {
+        return rules;
+    }
 };
 
 /** State information when determining if a tx is likely to claim a fee. */
@@ -143,6 +151,22 @@ public:
         uint256 const& ticketIndex,
         beast::Journal j);
 
+    /** Compute the minimum fee required to process a transaction
+        with a given baseFee based on the current server load.
+
+        @param app The application hosting the server
+        @param baseFee The base fee of a candidate transaction
+            @see ripple::calculateBaseFee
+        @param fees Fee settings from the current ledger
+        @param flags Transaction processing fees
+     */
+    static XRPAmount
+    minimumFee(
+            Application& app,
+            XRPAmount baseFee,
+            Fees const& fees,
+            ApplyFlags flags);
+
 protected:
     TER
     apply();
@@ -157,22 +181,6 @@ protected:
     {
         return tesSUCCESS;
     }
-
-    /** Compute the minimum fee required to process a transaction
-        with a given baseFee based on the current server load.
-
-        @param app The application hosting the server
-        @param baseFee The base fee of a candidate transaction
-            @see ripple::calculateBaseFee
-        @param fees Fee settings from the current ledger
-        @param flags Transaction processing fees
-     */
-    static XRPAmount
-    minimumFee(
-        Application& app,
-        XRPAmount baseFee,
-        Fees const& fees,
-        ApplyFlags flags);
 
 private:
     std::pair<TER, XRPAmount>
