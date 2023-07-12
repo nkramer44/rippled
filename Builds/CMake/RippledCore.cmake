@@ -695,6 +695,7 @@ target_sources (rippled PRIVATE
   src/ripple/rpc/handlers/Tx.cpp
   src/ripple/rpc/handlers/TxHistory.cpp
   src/ripple/rpc/handlers/TxReduceRelay.cpp
+  src/ripple/rpc/handlers/Quote.cpp
   src/ripple/rpc/handlers/UnlList.cpp
   src/ripple/rpc/handlers/Unsubscribe.cpp
   src/ripple/rpc/handlers/ValidationCreate.cpp
