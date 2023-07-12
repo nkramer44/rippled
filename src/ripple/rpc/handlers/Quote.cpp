@@ -168,6 +168,13 @@ doQuote(RPC::JsonContext& context)
     }
     else
     {
+        result[jss::source_amount] = -1;
+        std::string sToken;
+        std::string sHuman;
+
+        transResultInfo(rc.result(), sToken, sHuman);
+        result[jss::engine_result] = sToken;
+
         JLOG(context.j.debug()) << " rippleCalc returns "
                                 << transHuman(rc.result());
     }
